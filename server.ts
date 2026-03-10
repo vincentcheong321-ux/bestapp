@@ -1,0 +1,176 @@
+import express from "express";
+import { createServer as createViteServer } from "vite";
+import Database from "better-sqlite3";
+import { v4 as uuidv4 } from "uuid";
+import path from "path";
+
+const db = new Database("links.db");
+
+// Initialize database
+db.exec(`
+  CREATE TABLE IF NOT EXISTS expiring_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT UNIQUE NOT NULL,
+    target_url TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+
+  app.use(express.json());
+
+  // API: Generate expiring link
+  app.post("/api/generate", (req, res) => {
+    const { targetUrl, durationMinutes } = req.body;
+
+    if (!targetUrl || !durationMinutes) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const token = uuidv4().slice(0, 8); // Short token
+    const expiresAt = new Date(Date.now() + durationMinutes * 60000).toISOString();
+
+    try {
+      const stmt = db.prepare(
+        "INSERT INTO expiring_links (token, target_url, expires_at) VALUES (?, ?, ?)"
+      );
+      stmt.run(token, targetUrl, expiresAt);
+
+      let appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+      
+      // Automatically convert dev URL to shared/pre URL for public links
+      if (appUrl.includes('ais-dev-')) {
+        appUrl = appUrl.replace('ais-dev-', 'ais-pre-');
+      }
+
+      const expiringUrl = `${appUrl}/r/${token}`;
+
+      res.json({ expiringUrl, expiresAt, token });
+    } catch (error) {
+      console.error("Database error:", error);
+      res.status(500).json({ error: "Failed to generate link" });
+    }
+  });
+
+  // Redirect handler
+  app.get("/r/:token", (req, res) => {
+    const { token } = req.params;
+    console.log(`[Redirect] Accessing token: ${token}`);
+
+    const stmt = db.prepare(
+      "SELECT target_url, expires_at FROM expiring_links WHERE token = ?"
+    );
+    const link = stmt.get(token) as { target_url: string; expires_at: string } | undefined;
+
+    if (!link) {
+      console.log(`[Redirect] Token not found: ${token}`);
+      return res.status(404).send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h1>404 - Link Not Found</h1>
+          <p>The link you are looking for does not exist or has been removed.</p>
+          <a href="/" style="color: #0066cc; text-decoration: none;">Go to LinkVault Home</a>
+        </div>
+      `);
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(link.expires_at);
+
+    if (now > expiresAt) {
+      return res.status(410).send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h1>Link Expired</h1>
+          <p>This secure link expired on ${expiresAt.toLocaleString()}.</p>
+        </div>
+      `);
+    }
+
+    // Use client-side redirect to be more compatible with auth proxies/bridges
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Redirecting | LinkVault</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="refresh" content="2; url=${link.target_url}">
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              display: flex; 
+              justify-content: center; 
+              align-items: center; 
+              height: 100vh; 
+              margin: 0; 
+              background: #f9f9f9; 
+              color: #1a1a1a;
+            }
+            .card { 
+              background: white; 
+              padding: 2.5rem; 
+              border-radius: 1.5rem; 
+              box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+              text-align: center;
+              max-width: 400px;
+              width: 90%;
+            }
+            .spinner {
+              width: 40px;
+              height: 40px;
+              border: 3px solid #f3f3f3;
+              border-top: 3px solid #1a1a1a;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+              margin: 0 auto 1.5rem;
+            }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            h2 { margin: 0 0 0.5rem; font-weight: 600; font-size: 1.25rem; }
+            p { color: #666; font-size: 0.9rem; line-height: 1.5; }
+            a { color: #0066cc; text-decoration: none; font-weight: 500; }
+            a:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="spinner"></div>
+            <h2>Redirecting...</h2>
+            <p>We're taking you to your secure destination.</p>
+            <p style="margin-top: 1.5rem; border-top: 1px solid #eee; pt: 1rem; font-size: 0.75rem;">
+              If you are not redirected automatically, <a href="${link.target_url}">click here</a>.
+            </p>
+          </div>
+          <script>
+            // Immediate redirect attempt
+            setTimeout(() => {
+              window.location.href = "${link.target_url}";
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `);
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.join(process.cwd(), "dist")));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();

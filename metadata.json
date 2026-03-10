@@ -1,0 +1,5 @@
+{
+  "name": "LinkVault: Expiring URL Generator",
+  "description": "Generate secure, time-limited links that automatically expire after a set duration.",
+  "requestFramePermissions": []
+}
