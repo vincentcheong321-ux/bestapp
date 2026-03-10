@@ -4,16 +4,16 @@ import { v4 as uuidv4 } from "uuid";
 import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
-const isSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
-const isVercelPostgres = !!process.env.POSTGRES_URL && !process.env.POSTGRES_URL.includes("supabase") && !isSupabase;
+// Hardcoded Supabase credentials (WARNING: Security risk)
+const SUPABASE_URL = "https://zxxlkolwjtsnvlunpxpd.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4eGxrb2x3anRzbnZsdW5weHBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTAyMzksImV4cCI6MjA4ODcyNjIzOX0.cwFCMUWiaFV2xm2Diab2h17ZQd5wNuqPZ1TMQ8hDYQU";
+
+const isSupabase = true;
+const isVercelPostgres = false;
 const isVercel = !!process.env.VERCEL;
 
-if (isVercel && !isSupabase && !isVercelPostgres) {
-  throw new Error("No valid database configuration found on Vercel. Please set either SUPABASE_URL/SUPABASE_KEY or a valid POSTGRES_URL.");
-}
-
-const db = (!isVercelPostgres && !isSupabase) ? new Database("links.db") : null;
-const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!) : null;
+const db = null;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
 app.use(express.json());
