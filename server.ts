@@ -3,19 +3,51 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
+import { sql } from "@vercel/postgres";
+import { createClient } from "@supabase/supabase-js";
 
-const db = new Database("links.db");
+const isVercel = !!process.env.POSTGRES_URL;
+const isSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
+
+const db = (!isVercel && !isSupabase) ? new Database("links.db") : null;
+const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!) : null;
 
 // Initialize database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS expiring_links (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    token TEXT UNIQUE NOT NULL,
-    target_url TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+async function initDb() {
+  if (isSupabase && supabase) {
+    // Supabase tables are usually created via the dashboard, but we can't easily do it here via JS without admin keys.
+    // We'll assume the user creates it or we'll log instructions.
+    console.log("Supabase client initialized. Ensure 'expiring_links' table exists.");
+  } else if (isVercel) {
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS expiring_links (
+          id SERIAL PRIMARY KEY,
+          token TEXT UNIQUE NOT NULL,
+          target_url TEXT NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      console.log("Postgres database initialized");
+    } catch (error) {
+      console.error("Postgres initialization error:", error);
+    }
+  } else if (db) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS expiring_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        target_url TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("SQLite database initialized");
+  }
+}
+
+initDb();
 
 async function startServer() {
   const app = express();
@@ -24,7 +56,7 @@ async function startServer() {
   app.use(express.json());
 
   // API: Generate expiring link
-  app.post("/api/generate", (req, res) => {
+  app.post("/api/generate", async (req, res) => {
     const { targetUrl, durationMinutes } = req.body;
 
     if (!targetUrl || !durationMinutes) {
@@ -35,10 +67,24 @@ async function startServer() {
     const expiresAt = new Date(Date.now() + durationMinutes * 60000).toISOString();
 
     try {
-      const stmt = db.prepare(
-        "INSERT INTO expiring_links (token, target_url, expires_at) VALUES (?, ?, ?)"
-      );
-      stmt.run(token, targetUrl, expiresAt);
+      if (isSupabase && supabase) {
+        const { error } = await supabase
+          .from('expiring_links')
+          .insert([
+            { token, target_url: targetUrl, expires_at: expiresAt }
+          ]);
+        if (error) throw error;
+      } else if (isVercel) {
+        await sql`
+          INSERT INTO expiring_links (token, target_url, expires_at)
+          VALUES (${token}, ${targetUrl}, ${expiresAt})
+        `;
+      } else if (db) {
+        const stmt = db.prepare(
+          "INSERT INTO expiring_links (token, target_url, expires_at) VALUES (?, ?, ?)"
+        );
+        stmt.run(token, targetUrl, expiresAt);
+      }
 
       let appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
       
@@ -57,14 +103,45 @@ async function startServer() {
   });
 
   // Redirect handler
-  app.get("/r/:token", (req, res) => {
+  app.get("/r/:token", async (req, res) => {
     const { token } = req.params;
     console.log(`[Redirect] Accessing token: ${token}`);
 
-    const stmt = db.prepare(
-      "SELECT target_url, expires_at FROM expiring_links WHERE token = ?"
-    );
-    const link = stmt.get(token) as { target_url: string; expires_at: string } | undefined;
+    let link: { target_url: string; expires_at: string } | undefined;
+
+    try {
+      if (isSupabase && supabase) {
+        const { data, error } = await supabase
+          .from('expiring_links')
+          .select('target_url, expires_at')
+          .eq('token', token)
+          .single();
+        
+        if (data) {
+          link = {
+            target_url: data.target_url,
+            expires_at: data.expires_at
+          };
+        }
+      } else if (isVercel) {
+        const { rows } = await sql`
+          SELECT target_url, expires_at FROM expiring_links WHERE token = ${token}
+        `;
+        if (rows.length > 0) {
+          link = {
+            target_url: rows[0].target_url,
+            expires_at: rows[0].expires_at.toISOString ? rows[0].expires_at.toISOString() : rows[0].expires_at
+          };
+        }
+      } else if (db) {
+        const stmt = db.prepare(
+          "SELECT target_url, expires_at FROM expiring_links WHERE token = ?"
+        );
+        link = stmt.get(token) as { target_url: string; expires_at: string } | undefined;
+      }
+    } catch (error) {
+      console.error("Database query error:", error);
+    }
 
     if (!link) {
       console.log(`[Redirect] Token not found: ${token}`);
