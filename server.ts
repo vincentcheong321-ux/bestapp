@@ -49,15 +49,14 @@ async function initDb() {
 
 initDb();
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = 3000;
 
-  app.use(express.json());
+app.use(express.json());
 
-  // API: Generate expiring link
-  app.post("/api/generate", async (req, res) => {
-    const { targetUrl, durationMinutes } = req.body;
+// API: Generate expiring link
+app.post("/api/generate", async (req, res) => {
+  const { targetUrl, durationMinutes } = req.body;
 
     if (!targetUrl || !durationMinutes) {
       return res.status(400).json({ error: "Missing required fields" });
