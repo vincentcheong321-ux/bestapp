@@ -5,9 +5,14 @@ import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
 const isSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
-const isVercel = !!process.env.POSTGRES_URL && !process.env.POSTGRES_URL.includes("supabase") && !isSupabase;
+const isVercelPostgres = !!process.env.POSTGRES_URL && !process.env.POSTGRES_URL.includes("supabase") && !isSupabase;
+const isVercel = !!process.env.VERCEL;
 
-const db = (!isVercel && !isSupabase) ? new Database("links.db") : null;
+if (isVercel && !isSupabase && !isVercelPostgres) {
+  throw new Error("No valid database configuration found on Vercel. Please set either SUPABASE_URL/SUPABASE_KEY or a valid POSTGRES_URL.");
+}
+
+const db = (!isVercelPostgres && !isSupabase) ? new Database("links.db") : null;
 const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!) : null;
 
 const app = express();
@@ -21,7 +26,7 @@ async function initDb() {
 
   if (isSupabase && supabase) {
     console.log("Supabase client initialized.");
-  } else if (isVercel) {
+  } else if (isVercelPostgres) {
     try {
       await sql`
         CREATE TABLE IF NOT EXISTS expiring_links (
@@ -73,7 +78,7 @@ app.post("/api/generate", async (req, res) => {
         .insert([{ token, target_url: targetUrl, expires_at: expiresAt }]);
       if (error) throw error;
       console.log("Supabase insert successful");
-    } else if (isVercel) {
+    } else if (isVercelPostgres) {
       console.log("Attempting Postgres insert");
       await sql`
         INSERT INTO expiring_links (token, target_url, expires_at)
@@ -114,7 +119,7 @@ app.get("/r/:token", async (req, res) => {
         .single();
       if (error) throw error;
       link = data;
-    } else if (isVercel) {
+    } else if (isVercelPostgres) {
       const { rows } = await sql`SELECT * FROM expiring_links WHERE token = ${token}`;
       link = rows[0];
     } else if (db) {
