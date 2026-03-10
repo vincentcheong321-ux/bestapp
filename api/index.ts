@@ -5,7 +5,7 @@ import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
 const isSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
-const isVercel = !!process.env.POSTGRES_URL && !isSupabase;
+const isVercel = !!process.env.POSTGRES_URL && !process.env.POSTGRES_URL.includes("supabase") && !isSupabase;
 
 const db = (!isVercel && !isSupabase) ? new Database("links.db") : null;
 const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!) : null;
