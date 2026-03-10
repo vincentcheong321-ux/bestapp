@@ -48,40 +48,50 @@ async function initDb() {
 
 // API: Generate expiring link
 app.post("/api/generate", async (req, res) => {
+  console.log("Request body:", req.body);
   await initDb();
   const { targetUrl, durationMinutes } = req.body;
 
   if (!targetUrl || !durationMinutes) {
+    console.log("Missing required fields");
     return res.status(400).json({ error: "Missing required fields" });
   }
 
   const token = uuidv4().slice(0, 8);
   const expiresAt = new Date(Date.now() + durationMinutes * 60000).toISOString();
+  console.log("Generated token:", token, "Expires at:", expiresAt);
 
   try {
     if (isSupabase && supabase) {
+      console.log("Attempting Supabase insert");
       const { error } = await supabase
         .from('expiring_links')
         .insert([{ token, target_url: targetUrl, expires_at: expiresAt }]);
       if (error) throw error;
+      console.log("Supabase insert successful");
     } else if (isVercel) {
+      console.log("Attempting Postgres insert");
       await sql`
         INSERT INTO expiring_links (token, target_url, expires_at)
         VALUES (${token}, ${targetUrl}, ${expiresAt})
       `;
+      console.log("Postgres insert successful");
     } else if (db) {
+      console.log("Attempting SQLite insert");
       const stmt = db.prepare(
         "INSERT INTO expiring_links (token, target_url, expires_at) VALUES (?, ?, ?)"
       );
       stmt.run(token, targetUrl, expiresAt);
+      console.log("SQLite insert successful");
     }
 
     let appUrl = process.env.APP_URL || "https://bestapp-phi.vercel.app";
     const expiringUrl = `${appUrl}/r/${token}`;
+    console.log("Returning success:", { expiringUrl, expiresAt, token });
     res.json({ expiringUrl, expiresAt, token });
   } catch (error) {
     console.error("Database error:", error);
-    res.status(500).json({ error: "Failed to generate link" });
+    res.status(500).json({ error: "Failed to generate link", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
