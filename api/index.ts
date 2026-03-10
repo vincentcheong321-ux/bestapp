@@ -15,6 +15,10 @@ app.use(express.json());
 
 // Initialize database
 async function initDb() {
+  console.log("Debug: isSupabase =", isSupabase, "isVercel =", isVercel);
+  console.log("Debug: SUPABASE_URL =", !!process.env.SUPABASE_URL, "SUPABASE_KEY =", !!process.env.SUPABASE_KEY);
+  console.log("Debug: POSTGRES_URL =", !!process.env.POSTGRES_URL);
+
   if (isSupabase && supabase) {
     console.log("Supabase client initialized.");
   } else if (isVercel) {
