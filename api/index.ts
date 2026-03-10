@@ -13,8 +13,42 @@ const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.en
 const app = express();
 app.use(express.json());
 
+// Initialize database
+async function initDb() {
+  if (isSupabase && supabase) {
+    console.log("Supabase client initialized.");
+  } else if (isVercel) {
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS expiring_links (
+          id SERIAL PRIMARY KEY,
+          token TEXT UNIQUE NOT NULL,
+          target_url TEXT NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      console.log("Postgres database initialized");
+    } catch (error) {
+      console.error("Postgres initialization error:", error);
+    }
+  } else if (db) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS expiring_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        target_url TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("SQLite database initialized");
+  }
+}
+
 // API: Generate expiring link
 app.post("/api/generate", async (req, res) => {
+  await initDb();
   const { targetUrl, durationMinutes } = req.body;
 
   if (!targetUrl || !durationMinutes) {
@@ -53,6 +87,7 @@ app.post("/api/generate", async (req, res) => {
 
 // API: Redirect
 app.get("/r/:token", async (req, res) => {
+  await initDb();
   const { token } = req.params;
   let link;
 
