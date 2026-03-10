@@ -4,8 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
-const isVercel = !!process.env.POSTGRES_URL;
 const isSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
+const isVercel = !!process.env.POSTGRES_URL && !isSupabase;
 
 const db = (!isVercel && !isSupabase) ? new Database("links.db") : null;
 const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!) : null;
