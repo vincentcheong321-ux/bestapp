@@ -6,19 +6,22 @@ import path from "path";
 import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
-const isVercel = !!process.env.POSTGRES_URL;
-const isSupabase = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_KEY;
+// Hardcoded Supabase credentials (WARNING: Security risk)
+const SUPABASE_URL = "https://zxxlkolwjtsnvlunpxpd.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4eGxrb2x3anRzbnZsdW5weHBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTAyMzksImV4cCI6MjA4ODcyNjIzOX0.cwFCMUWiaFV2xm2Diab2h17ZQd5wNuqPZ1TMQ8hDYQU";
 
-const db = (!isVercel && !isSupabase) ? new Database("links.db") : null;
-const supabase = isSupabase ? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!) : null;
+const isSupabase = true;
+const isVercelPostgres = false;
+const isVercel = !!process.env.VERCEL;
+
+const db = null;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Initialize database
 async function initDb() {
   if (isSupabase && supabase) {
-    // Supabase tables are usually created via the dashboard, but we can't easily do it here via JS without admin keys.
-    // We'll assume the user creates it or we'll log instructions.
-    console.log("Supabase client initialized. Ensure 'expiring_links' table exists.");
-  } else if (isVercel) {
+    console.log("Supabase client initialized.");
+  } else if (isVercelPostgres) {
     try {
       await sql`
         CREATE TABLE IF NOT EXISTS expiring_links (
@@ -34,7 +37,7 @@ async function initDb() {
       console.error("Postgres initialization error:", error);
     }
   } else if (db) {
-    db.exec(`
+    (db as any).exec(`
       CREATE TABLE IF NOT EXISTS expiring_links (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         token TEXT UNIQUE NOT NULL,
@@ -47,10 +50,11 @@ async function initDb() {
   }
 }
 
-initDb();
+async function startServer() {
+  await initDb();
 
-const app = express();
-const PORT = 3000;
+  const app = express();
+  const PORT = 3000;
 
 app.use(express.json());
 
@@ -170,7 +174,7 @@ app.post("/api/generate", async (req, res) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Redirecting | LinkVault</title>
+          <title>Downloading | LinkVault</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <meta http-equiv="refresh" content="2; url=${link.target_url}">
@@ -213,10 +217,10 @@ app.post("/api/generate", async (req, res) => {
         <body>
           <div class="card">
             <div class="spinner"></div>
-            <h2>Redirecting...</h2>
+            <h2>Downloading...</h2>
             <p>We're taking you to your secure destination.</p>
             <p style="margin-top: 1.5rem; border-top: 1px solid #eee; pt: 1rem; font-size: 0.75rem;">
-              If you are not redirected automatically, <a href="${link.target_url}">click here</a>.
+              If the download does not start automatically, <a href="${link.target_url}">click here</a>.
             </p>
           </div>
           <script>

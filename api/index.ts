@@ -133,7 +133,7 @@ app.get("/r/:token", async (req, res) => {
     res.send(`
       <html>
         <head>
-          <title>Redirecting...</title>
+          <title>Downloading...</title>
           <style>
             body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
             .card { text-align: center; padding: 2rem; border: 1px solid #eee; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -144,8 +144,8 @@ app.get("/r/:token", async (req, res) => {
         <body>
           <div class="card">
             <div class="spinner"></div>
-            <h2>Redirecting...</h2>
-            <p>If you are not redirected automatically, <a href="${link.target_url}">click here</a>.</p>
+            <h2>Downloading...</h2>
+            <p>If the download does not start automatically, <a href="${link.target_url}">click here</a>.</p>
           </div>
           <script>
             setTimeout(() => { window.location.href = "${link.target_url}"; }, 500);
