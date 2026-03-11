@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Link2, Clock, Copy, Check, ExternalLink, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Link2, Clock, Copy, Check, ExternalLink, AlertCircle, ShieldCheck, Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -32,13 +32,52 @@ const DURATIONS = [
 ];
 
 export default function App() {
-  const [selectedUrl, setSelectedUrl] = useState(HARDCODED_URLS[0].url);
+  const [urls, setUrls] = useState<{ name: string; url: string }[]>(() => {
+    const saved = localStorage.getItem('linkvault_urls');
+    return saved ? JSON.parse(saved) : HARDCODED_URLS;
+  });
+  const [newUrlName, setNewUrlName] = useState('');
+  const [newUrlValue, setNewUrlValue] = useState('');
+  const [selectedUrl, setSelectedUrl] = useState(urls[0]?.url || '');
   const [duration, setDuration] = useState(DURATIONS[1].value);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('linkvault_urls', JSON.stringify(urls));
+  }, [urls]);
+
+  const addUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUrlName || !newUrlValue) return;
+    
+    // Basic URL validation
+    try {
+      new URL(newUrlValue);
+    } catch {
+      setError('Please enter a valid URL (including http:// or https://)');
+      return;
+    }
+
+    const newEntry = { name: newUrlName, url: newUrlValue };
+    setUrls([...urls, newEntry]);
+    setNewUrlName('');
+    setNewUrlValue('');
+    setSelectedUrl(newUrlValue);
+    setError(null);
+  };
+
+  const removeUrl = (e: React.MouseEvent, urlToRemove: string) => {
+    e.stopPropagation();
+    const updatedUrls = urls.filter(u => u.url !== urlToRemove);
+    setUrls(updatedUrls);
+    if (selectedUrl === urlToRemove) {
+      setSelectedUrl(updatedUrls[0]?.url || '');
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -93,28 +132,67 @@ export default function App() {
               <label className="block text-xs font-medium uppercase tracking-wider text-zinc-400 mb-4 px-1">
                 Select Target Resource
               </label>
-              <div className="grid grid-cols-1 gap-2">
-                {HARDCODED_URLS.map((item) => (
-                  <button
-                    key={item.url}
-                    onClick={() => setSelectedUrl(item.url)}
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 text-left",
-                      selectedUrl === item.url
-                        ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
-                        : "bg-white border-black/5 text-zinc-600 hover:border-zinc-300"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Link2 className={cn("w-4 h-4", selectedUrl === item.url ? "text-zinc-400" : "text-zinc-300")} />
-                      <span className="font-medium">{item.name}</span>
-                    </div>
-                    <span className={cn("text-xs opacity-60 truncate max-w-[200px]", selectedUrl === item.url ? "text-zinc-300" : "text-zinc-400")}>
-                      {item.url}
-                    </span>
-                  </button>
+              <div className="grid grid-cols-1 gap-2 mb-4">
+                {urls.map((item) => (
+                  <div key={item.url} className="group relative">
+                    <button
+                      onClick={() => setSelectedUrl(item.url)}
+                      className={cn(
+                        "w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 text-left",
+                        selectedUrl === item.url
+                          ? "bg-zinc-900 border-zinc-900 text-white shadow-md"
+                          : "bg-white border-black/5 text-zinc-600 hover:border-zinc-300"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <Link2 className={cn("w-4 h-4 shrink-0", selectedUrl === item.url ? "text-zinc-400" : "text-zinc-300")} />
+                        <span className="font-medium truncate">{item.name}</span>
+                      </div>
+                      <span className={cn("text-xs opacity-60 truncate ml-4 hidden sm:block max-w-[200px]", selectedUrl === item.url ? "text-zinc-300" : "text-zinc-400")}>
+                        {item.url}
+                      </span>
+                    </button>
+                    <button
+                      onClick={(e) => removeUrl(e, item.url)}
+                      className={cn(
+                        "absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity",
+                        selectedUrl === item.url ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-300 hover:text-red-500 hover:bg-red-50"
+                      )}
+                      title="Remove resource"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))}
               </div>
+
+              {/* Add New URL Form */}
+              <form onSubmit={addUrl} className="bg-zinc-50 rounded-2xl p-4 border border-dashed border-zinc-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Resource Name (e.g. My App)"
+                    value={newUrlName}
+                    onChange={(e) => setNewUrlName(e.target.value)}
+                    className="bg-white border border-black/5 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200 transition-all"
+                  />
+                  <input
+                    type="text"
+                    placeholder="URL (https://...)"
+                    value={newUrlValue}
+                    onChange={(e) => setNewUrlValue(e.target.value)}
+                    className="bg-white border border-black/5 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!newUrlName || !newUrlValue}
+                  className="w-full py-2 bg-white border border-black/5 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add New Resource
+                </button>
+              </form>
             </div>
 
             {/* Expiration Selection */}
