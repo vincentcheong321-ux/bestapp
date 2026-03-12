@@ -94,6 +94,9 @@ async function startServer() {
     }
   });
 
+  // Alias singular to plural
+  api.get("/resource", (req, res) => res.redirect(301, "/api/resources"));
+
   api.post("/resources", async (req, res) => {
     console.log("POST RESOURCES HIT", req.body);
     const { name, url } = req.body;
@@ -191,10 +194,6 @@ async function startServer() {
     }
   });
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`SERVER LISTENING ON PORT ${PORT}`);
-  });
-
   // Vite middleware
   if (process.env.NODE_ENV !== "production") {
     console.log("INITIALIZING VITE MIDDLEWARE...");
@@ -212,6 +211,10 @@ async function startServer() {
     app.use(express.static(distPath));
     app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`SERVER LISTENING ON PORT ${PORT}`);
+  });
 }
 
 startServer().catch(err => {
