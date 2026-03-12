@@ -1,224 +1,256 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
+import Database from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
+import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
-console.log("SERVER INITIALIZING...");
-
-// Hardcoded Supabase credentials
+// Hardcoded Supabase credentials (WARNING: Security risk)
 const SUPABASE_URL = "https://zxxlkolwjtsnvlunpxpd.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4eGxrb2x3anRzbnZsdW5weHBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTAyMzksImV4cCI6MjA4ODcyNjIzOX0.cwFCMUWiaFV2xm2Diab2h17ZQd5wNuqPZ1TMQ8hDYQU";
 
+const isSupabase = true;
+const isVercelPostgres = false;
+const isVercel = !!process.env.VERCEL;
+
+const db = null;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const HARDCODED_RESOURCES = [
-  { name: 'Google', url: 'https://www.google.com' },
-  { name: 'GitHub', url: 'https://github.com' },
-  { name: 'AI Studio', url: 'https://aistudio.google.com' },
-  { name: 'Tailwind CSS', url: 'https://tailwindcss.com' },
-  { name: 'React', url: 'https://react.dev' },
-  { name: '金调KTV APK', url: 'https://github.com/Archmage83/tvapk/blob/master/%E9%87%91%E8%B0%83KTV.apk' },
-  { name: '金调KTV APK (Direct)', url: 'https://github.com/Archmage83/tvapk/raw/refs/heads/master/%E9%87%91%E8%B0%83KTV.apk' },
-  { name: 'VINKTV APK', url: 'https://github.com/vincentcheong321-ux/bestapp/releases/download/vinktv/VINKTV.apk' },
-];
+// Initialize database
+async function initDb() {
+  if (isSupabase && supabase) {
+    console.log("Supabase client initialized.");
+  } else if (isVercelPostgres) {
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS expiring_links (
+          id SERIAL PRIMARY KEY,
+          token TEXT UNIQUE NOT NULL,
+          target_url TEXT NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      console.log("Postgres database initialized");
+    } catch (error) {
+      console.error("Postgres initialization error:", error);
+    }
+  } else if (db) {
+    (db as any).exec(`
+      CREATE TABLE IF NOT EXISTS expiring_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        target_url TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("SQLite database initialized");
+  }
+}
 
 async function startServer() {
-  console.log("STARTING SERVER...");
+  await initDb();
+
   const app = express();
   const PORT = 3000;
 
-  // Seed database if empty (non-blocking)
-  const seedDatabase = async () => {
-    try {
-      console.log("Checking database state...");
-      const { data, error } = await supabase.from('target_resources').select('count');
-      if (error && error.code !== '42P01') throw error;
-      
-      if (!data || data.length === 0) {
-        console.log("Seeding database with hardcoded resources...");
-        await supabase.from('target_resources').insert(HARDCODED_RESOURCES);
-      }
-    } catch (err) {
-      console.warn("Seeding skipped or failed (table might not exist yet):", err);
+app.use(express.json());
+
+// API: Generate expiring link
+app.post("/api/generate", async (req, res) => {
+  const { targetUrl, durationMinutes } = req.body;
+
+    if (!targetUrl || !durationMinutes) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
-  };
 
-  // Start seeding in background
-  seedDatabase();
-
-  app.use(express.json());
-
-  // Request logging
-  app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-  });
-
-  // API Routes
-  const api = express.Router();
-
-  api.get("/test", (req, res) => {
-    console.log("API TEST HIT");
-    res.json({ status: "ok", time: new Date().toISOString() });
-  });
-
-  api.get("/resources", async (req, res) => {
-    console.log("GET RESOURCES HIT");
-    try {
-      let { data, error } = await supabase
-        .from('target_resources')
-        .select('*')
-        .order('created_at', { ascending: true });
-      
-      if (error) {
-        if (error.code === '42P01') return res.json([]);
-        throw error;
-      }
-
-      // Fallback seeding if count check failed earlier
-      if (!data || data.length === 0) {
-        console.log("Table empty, inserting defaults...");
-        const { data: seededData, error: seedError } = await supabase
-          .from('target_resources')
-          .insert(HARDCODED_RESOURCES)
-          .select();
-        
-        if (!seedError && seededData) {
-          data = seededData;
-        }
-      }
-
-      res.json(data || []);
-    } catch (error: any) {
-      console.error("Error fetching resources:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Alias singular to plural
-  api.get("/resource", (req, res) => res.redirect(301, "/api/resources"));
-
-  api.post("/resources", async (req, res) => {
-    console.log("POST RESOURCES HIT", req.body);
-    const { name, url } = req.body;
-    if (!name || !url) return res.status(400).json({ error: "Missing fields" });
-
-    try {
-      const { data, error } = await supabase
-        .from('target_resources')
-        .insert([{ name, url }])
-        .select();
-      if (error) throw error;
-      res.json(data[0]);
-    } catch (error: any) {
-      console.error("Error adding resource:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  api.delete("/resources", async (req, res) => {
-    console.log("DELETE RESOURCES HIT", req.body);
-    const { url } = req.body;
-    try {
-      const { error } = await supabase
-        .from('target_resources')
-        .delete()
-        .eq('url', url);
-      if (error) throw error;
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("Error deleting resource:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  api.post("/generate", async (req, res) => {
-    console.log("GENERATE HIT", req.body);
-    const { targetUrl, durationMinutes } = req.body;
-    if (!targetUrl || !durationMinutes) return res.status(400).json({ error: "Missing fields" });
-
-    const token = uuidv4().slice(0, 8);
+    const token = uuidv4().slice(0, 8); // Short token
     const expiresAt = new Date(Date.now() + durationMinutes * 60000).toISOString();
 
     try {
-      const { error } = await supabase
-        .from('expiring_links')
-        .insert([{ token, target_url: targetUrl, expires_at: expiresAt }]);
-      if (error) throw error;
+      if (isSupabase && supabase) {
+        const { error } = await supabase
+          .from('expiring_links')
+          .insert([
+            { token, target_url: targetUrl, expires_at: expiresAt }
+          ]);
+        if (error) throw error;
+      } else if (isVercel) {
+        await sql`
+          INSERT INTO expiring_links (token, target_url, expires_at)
+          VALUES (${token}, ${targetUrl}, ${expiresAt})
+        `;
+      } else if (db) {
+        const stmt = db.prepare(
+          "INSERT INTO expiring_links (token, target_url, expires_at) VALUES (?, ?, ?)"
+        );
+        stmt.run(token, targetUrl, expiresAt);
+      }
 
       let appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
-      if (appUrl.includes('ais-dev-')) appUrl = appUrl.replace('ais-dev-', 'ais-pre-');
       
-      res.json({ expiringUrl: `${appUrl}/r/${token}`, expiresAt, token });
-    } catch (error: any) {
-      console.error("Generate error:", error);
-      res.status(500).json({ error: error.message });
+      // Automatically convert dev URL to shared/pre URL for public links
+      if (appUrl.includes('ais-dev-')) {
+        appUrl = appUrl.replace('ais-dev-', 'ais-pre-');
+      }
+
+      const expiringUrl = `${appUrl}/r/${token}`;
+
+      res.json({ expiringUrl, expiresAt, token });
+    } catch (error) {
+      console.error("Database error:", error);
+      res.status(500).json({ error: "Failed to generate link" });
     }
   });
-
-  app.use("/api", api);
 
   // Redirect handler
   app.get("/r/:token", async (req, res) => {
     const { token } = req.params;
-    console.log("REDIRECT HIT", token);
+    console.log(`[Redirect] Accessing token: ${token}`);
+
+    let link: { target_url: string; expires_at: string } | undefined;
 
     try {
-      const { data: link, error } = await supabase
-        .from('expiring_links')
-        .select('target_url, expires_at')
-        .eq('token', token)
-        .single();
-      
-      if (error || !link) {
-        return res.status(404).send("Link not found");
+      if (isSupabase && supabase) {
+        const { data, error } = await supabase
+          .from('expiring_links')
+          .select('target_url, expires_at')
+          .eq('token', token)
+          .single();
+        
+        if (data) {
+          link = {
+            target_url: data.target_url,
+            expires_at: data.expires_at
+          };
+        }
+      } else if (isVercel) {
+        const { rows } = await sql`
+          SELECT target_url, expires_at FROM expiring_links WHERE token = ${token}
+        `;
+        if (rows.length > 0) {
+          link = {
+            target_url: rows[0].target_url,
+            expires_at: rows[0].expires_at.toISOString ? rows[0].expires_at.toISOString() : rows[0].expires_at
+          };
+        }
+      } else if (db) {
+        const stmt = db.prepare(
+          "SELECT target_url, expires_at FROM expiring_links WHERE token = ?"
+        );
+        link = stmt.get(token) as { target_url: string; expires_at: string } | undefined;
       }
-
-      if (new Date() > new Date(link.expires_at)) {
-        return res.status(410).send("Link expired");
-      }
-
-      res.send(`
-        <html>
-          <head><meta http-equiv="refresh" content="1; url=${link.target_url}"></head>
-          <body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh;">
-            <div style="text-align: center;">
-              <h2>Redirecting...</h2>
-              <p>Taking you to your destination.</p>
-              <a href="${link.target_url}">Click here if not redirected</a>
-            </div>
-          </body>
-        </html>
-      `);
     } catch (error) {
-      res.status(500).send("Server error");
+      console.error("Database query error:", error);
     }
+
+    if (!link) {
+      console.log(`[Redirect] Token not found: ${token}`);
+      return res.status(404).send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h1>404 - Link Not Found</h1>
+          <p>The link you are looking for does not exist or has been removed.</p>
+          <a href="/" style="color: #0066cc; text-decoration: none;">Go to LinkVault Home</a>
+        </div>
+      `);
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(link.expires_at);
+
+    if (now > expiresAt) {
+      return res.status(410).send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h1>Link Expired</h1>
+          <p>This secure link expired on ${expiresAt.toLocaleString()}.</p>
+        </div>
+      `);
+    }
+
+    // Use client-side redirect to be more compatible with auth proxies/bridges
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Downloading | LinkVault</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="refresh" content="2; url=${link.target_url}">
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              display: flex; 
+              justify-content: center; 
+              align-items: center; 
+              height: 100vh; 
+              margin: 0; 
+              background: #f9f9f9; 
+              color: #1a1a1a;
+            }
+            .card { 
+              background: white; 
+              padding: 2.5rem; 
+              border-radius: 1.5rem; 
+              box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+              text-align: center;
+              max-width: 400px;
+              width: 90%;
+            }
+            .spinner {
+              width: 40px;
+              height: 40px;
+              border: 3px solid #f3f3f3;
+              border-top: 3px solid #1a1a1a;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+              margin: 0 auto 1.5rem;
+            }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            h2 { margin: 0 0 0.5rem; font-weight: 600; font-size: 1.25rem; }
+            p { color: #666; font-size: 0.9rem; line-height: 1.5; }
+            a { color: #0066cc; text-decoration: none; font-weight: 500; }
+            a:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="spinner"></div>
+            <h2>Downloading...</h2>
+            <p>We're taking you to your secure destination.</p>
+            <p style="margin-top: 1.5rem; border-top: 1px solid #eee; pt: 1rem; font-size: 0.75rem;">
+              If the download does not start automatically, <a href="${link.target_url}">click here</a>.
+            </p>
+          </div>
+          <script>
+            // Immediate redirect attempt
+            setTimeout(() => {
+              window.location.href = "${link.target_url}";
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `);
   });
 
-  // Vite middleware
+  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    console.log("INITIALIZING VITE MIDDLEWARE...");
     const vite = await createViteServer({
-      server: { 
-        middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== 'true'
-      },
+      server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-    console.log("VITE MIDDLEWARE READY");
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+    app.use(express.static(path.join(process.cwd(), "dist")));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`SERVER LISTENING ON PORT ${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
-startServer().catch(err => {
-  console.error("FATAL SERVER ERROR", err);
-});
+startServer();

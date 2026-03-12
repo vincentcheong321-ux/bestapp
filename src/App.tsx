@@ -13,6 +13,17 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const HARDCODED_URLS = [
+  { name: 'Google', url: 'https://www.google.com' },
+  { name: 'GitHub', url: 'https://github.com' },
+  { name: 'AI Studio', url: 'https://aistudio.google.com' },
+  { name: 'Tailwind CSS', url: 'https://tailwindcss.com' },
+  { name: 'React', url: 'https://react.dev' },
+  { name: '金调KTV APK', url: 'https://github.com/Archmage83/tvapk/blob/master/%E9%87%91%E8%B0%83KTV.apk' },
+  { name: '金调KTV APK (Direct)', url: 'https://github.com/Archmage83/tvapk/raw/refs/heads/master/%E9%87%91%E8%B0%83KTV.apk' },
+  { name: 'VINKTV APK', url: 'https://github.com/vincentcheong321-ux/bestapp/releases/download/vinktv/VINKTV.apk' },
+];
+
 const DURATIONS = [
   { label: '1 Minute', value: 1 },
   { label: '5 Minutes', value: 5 },
@@ -21,10 +32,13 @@ const DURATIONS = [
 ];
 
 export default function App() {
-  const [urls, setUrls] = useState<{ name: string; url: string }[]>([]);
+  const [urls, setUrls] = useState<{ name: string; url: string }[]>(() => {
+    const saved = localStorage.getItem('linkvault_urls');
+    return saved ? JSON.parse(saved) : HARDCODED_URLS;
+  });
   const [newUrlName, setNewUrlName] = useState('');
   const [newUrlValue, setNewUrlValue] = useState('');
-  const [selectedUrl, setSelectedUrl] = useState('');
+  const [selectedUrl, setSelectedUrl] = useState(urls[0]?.url || '');
   const [duration, setDuration] = useState(DURATIONS[1].value);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -33,25 +47,10 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchResources();
-  }, []);
+    localStorage.setItem('linkvault_urls', JSON.stringify(urls));
+  }, [urls]);
 
-  const fetchResources = async () => {
-    try {
-      const response = await fetch('/api/resources');
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          setUrls(data);
-          setSelectedUrl(data[0].url);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch resources:', err);
-    }
-  };
-
-  const addUrl = async (e: React.FormEvent) => {
+  const addUrl = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUrlName || !newUrlValue) return;
     
@@ -63,49 +62,20 @@ export default function App() {
       return;
     }
 
-    try {
-      const response = await fetch('/api/resources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newUrlName, url: newUrlValue }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to add resource');
-      }
-
-      setUrls([...urls, result]);
-      setNewUrlName('');
-      setNewUrlValue('');
-      setSelectedUrl(result.url);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
-      console.error(err);
-    }
+    const newEntry = { name: newUrlName, url: newUrlValue };
+    setUrls([...urls, newEntry]);
+    setNewUrlName('');
+    setNewUrlValue('');
+    setSelectedUrl(newUrlValue);
+    setError(null);
   };
 
-  const removeUrl = async (e: React.MouseEvent, urlToRemove: string) => {
+  const removeUrl = (e: React.MouseEvent, urlToRemove: string) => {
     e.stopPropagation();
-    try {
-      const response = await fetch('/api/resources', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlToRemove }),
-      });
-
-      if (!response.ok) throw new Error('Failed to remove resource');
-
-      const updatedUrls = urls.filter(u => u.url !== urlToRemove);
-      setUrls(updatedUrls);
-      if (selectedUrl === urlToRemove) {
-        setSelectedUrl(updatedUrls[0]?.url || '');
-      }
-    } catch (err) {
-      setError('Failed to remove from database.');
-      console.error(err);
+    const updatedUrls = urls.filter(u => u.url !== urlToRemove);
+    setUrls(updatedUrls);
+    if (selectedUrl === urlToRemove) {
+      setSelectedUrl(updatedUrls[0]?.url || '');
     }
   };
 
