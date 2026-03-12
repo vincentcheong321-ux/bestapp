@@ -55,6 +55,76 @@ async function initDb() {
   }
 }
 
+// API: Get all target resources
+app.get("/api/resources", async (req, res) => {
+  await initDb();
+  try {
+    if (isSupabase && supabase) {
+      const { data, error } = await supabase
+        .from('target_resources')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      res.json(data || []);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error("Failed to fetch resources:", error);
+    res.status(500).json({ error: "Failed to fetch resources" });
+  }
+});
+
+// API: Add a new target resource
+app.post("/api/resources", async (req, res) => {
+  await initDb();
+  const { name, url } = req.body;
+  if (!name || !url) {
+    return res.status(400).json({ error: "Missing name or url" });
+  }
+
+  try {
+    if (isSupabase && supabase) {
+      const { data, error } = await supabase
+        .from('target_resources')
+        .insert([{ name, url }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      res.json(data);
+    } else {
+      res.status(500).json({ error: "Supabase not configured" });
+    }
+  } catch (error) {
+    console.error("Failed to add resource:", error);
+    res.status(500).json({ error: "Failed to add resource" });
+  }
+});
+
+// API: Delete a target resource
+app.delete("/api/resources/:id", async (req, res) => {
+  await initDb();
+  const { id } = req.params;
+  try {
+    if (isSupabase && supabase) {
+      const { error } = await supabase
+        .from('target_resources')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: "Supabase not configured" });
+    }
+  } catch (error) {
+    console.error("Failed to delete resource:", error);
+    res.status(500).json({ error: "Failed to delete resource" });
+  }
+});
+
 // API: Generate expiring link
 app.post("/api/generate", async (req, res) => {
   console.log("Request body:", req.body);

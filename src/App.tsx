@@ -32,13 +32,10 @@ const DURATIONS = [
 ];
 
 export default function App() {
-  const [urls, setUrls] = useState<{ name: string; url: string }[]>(() => {
-    const saved = localStorage.getItem('linkvault_urls');
-    return saved ? JSON.parse(saved) : HARDCODED_URLS;
-  });
+  const [urls, setUrls] = useState<{ id?: number; name: string; url: string }[]>([]);
   const [newUrlName, setNewUrlName] = useState('');
   const [newUrlValue, setNewUrlValue] = useState('');
-  const [selectedUrl, setSelectedUrl] = useState(urls[0]?.url || '');
+  const [selectedUrl, setSelectedUrl] = useState('');
   const [duration, setDuration] = useState(DURATIONS[1].value);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -47,10 +44,29 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('linkvault_urls', JSON.stringify(urls));
-  }, [urls]);
+    const fetchResources = async () => {
+      try {
+        const response = await fetch('/api/resources');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            setUrls(data);
+            setSelectedUrl(data[0].url);
+          } else {
+            setUrls(HARDCODED_URLS);
+            setSelectedUrl(HARDCODED_URLS[0].url);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch resources:", err);
+        setUrls(HARDCODED_URLS);
+        setSelectedUrl(HARDCODED_URLS[0].url);
+      }
+    };
+    fetchResources();
+  }, []);
 
-  const addUrl = (e: React.FormEvent) => {
+  const addUrl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUrlName || !newUrlValue) return;
     
@@ -62,16 +78,40 @@ export default function App() {
       return;
     }
 
-    const newEntry = { name: newUrlName, url: newUrlValue };
-    setUrls([...urls, newEntry]);
-    setNewUrlName('');
-    setNewUrlValue('');
-    setSelectedUrl(newUrlValue);
-    setError(null);
+    try {
+      const response = await fetch('/api/resources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newUrlName, url: newUrlValue }),
+      });
+
+      if (response.ok) {
+        const newEntry = await response.json();
+        setUrls([newEntry, ...urls]);
+        setNewUrlName('');
+        setNewUrlValue('');
+        setSelectedUrl(newEntry.url);
+        setError(null);
+      } else {
+        throw new Error('Failed to add resource');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to add resource to database.');
+    }
   };
 
-  const removeUrl = (e: React.MouseEvent, urlToRemove: string) => {
+  const removeUrl = async (e: React.MouseEvent, urlToRemove: string, id?: number) => {
     e.stopPropagation();
+    
+    if (id) {
+      try {
+        await fetch(`/api/resources/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error("Failed to delete resource:", err);
+      }
+    }
+
     const updatedUrls = urls.filter(u => u.url !== urlToRemove);
     setUrls(updatedUrls);
     if (selectedUrl === urlToRemove) {
@@ -153,7 +193,7 @@ export default function App() {
                       </span>
                     </button>
                     <button
-                      onClick={(e) => removeUrl(e, item.url)}
+                      onClick={(e) => removeUrl(e, item.url, item.id)}
                       className={cn(
                         "absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity",
                         selectedUrl === item.url ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-300 hover:text-red-500 hover:bg-red-50"
