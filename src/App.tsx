@@ -32,13 +32,10 @@ const DURATIONS = [
 ];
 
 export default function App() {
-  const [urls, setUrls] = useState<{ name: string; url: string }[]>(() => {
-    const saved = localStorage.getItem('linkvault_urls');
-    return saved ? JSON.parse(saved) : HARDCODED_URLS;
-  });
+  const [urls, setUrls] = useState<{ name: string; url: string }[]>(HARDCODED_URLS);
   const [newUrlName, setNewUrlName] = useState('');
   const [newUrlValue, setNewUrlValue] = useState('');
-  const [selectedUrl, setSelectedUrl] = useState(urls[0]?.url || '');
+  const [selectedUrl, setSelectedUrl] = useState(HARDCODED_URLS[0].url);
   const [duration, setDuration] = useState(DURATIONS[1].value);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -47,10 +44,25 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('linkvault_urls', JSON.stringify(urls));
-  }, [urls]);
+    fetchResources();
+  }, []);
 
-  const addUrl = (e: React.FormEvent) => {
+  const fetchResources = async () => {
+    try {
+      const response = await fetch('/api/resources');
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          setUrls(data);
+          setSelectedUrl(data[0].url);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch resources:', err);
+    }
+  };
+
+  const addUrl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUrlName || !newUrlValue) return;
     
@@ -62,20 +74,46 @@ export default function App() {
       return;
     }
 
-    const newEntry = { name: newUrlName, url: newUrlValue };
-    setUrls([...urls, newEntry]);
-    setNewUrlName('');
-    setNewUrlValue('');
-    setSelectedUrl(newUrlValue);
-    setError(null);
+    try {
+      const response = await fetch('/api/resources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newUrlName, url: newUrlValue }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add resource');
+
+      const newResource = await response.json();
+      setUrls([...urls, newResource]);
+      setNewUrlName('');
+      setNewUrlValue('');
+      setSelectedUrl(newResource.url);
+      setError(null);
+    } catch (err) {
+      setError('Failed to save to database. Ensure "target_resources" table exists.');
+      console.error(err);
+    }
   };
 
-  const removeUrl = (e: React.MouseEvent, urlToRemove: string) => {
+  const removeUrl = async (e: React.MouseEvent, urlToRemove: string) => {
     e.stopPropagation();
-    const updatedUrls = urls.filter(u => u.url !== urlToRemove);
-    setUrls(updatedUrls);
-    if (selectedUrl === urlToRemove) {
-      setSelectedUrl(updatedUrls[0]?.url || '');
+    try {
+      const response = await fetch('/api/resources', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlToRemove }),
+      });
+
+      if (!response.ok) throw new Error('Failed to remove resource');
+
+      const updatedUrls = urls.filter(u => u.url !== urlToRemove);
+      setUrls(updatedUrls);
+      if (selectedUrl === urlToRemove) {
+        setSelectedUrl(updatedUrls[0]?.url || '');
+      }
+    } catch (err) {
+      setError('Failed to remove from database.');
+      console.error(err);
     }
   };
 

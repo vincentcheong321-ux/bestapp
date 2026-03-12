@@ -21,6 +21,23 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 async function initDb() {
   if (isSupabase && supabase) {
     console.log("Supabase client initialized.");
+    console.log("Ensure the following tables exist in your Supabase project:");
+    console.log(`
+      CREATE TABLE IF NOT EXISTS expiring_links (
+        id SERIAL PRIMARY KEY,
+        token TEXT UNIQUE NOT NULL,
+        target_url TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS target_resources (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
   } else if (isVercelPostgres) {
     try {
       await sql`
@@ -57,6 +74,70 @@ async function startServer() {
   const PORT = 3000;
 
 app.use(express.json());
+
+// API: Manage target resources
+app.get("/api/resources", async (req, res) => {
+  try {
+    if (isSupabase && supabase) {
+      const { data, error } = await supabase
+        .from('target_resources')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) {
+        // If table doesn't exist, return default hardcoded ones
+        if (error.code === '42P01') return res.json([]);
+        throw error;
+      }
+      res.json(data);
+    } else {
+      res.json([]); // Fallback for non-supabase
+    }
+  } catch (error) {
+    console.error("Error fetching resources:", error);
+    res.status(500).json({ error: "Failed to fetch resources" });
+  }
+});
+
+app.post("/api/resources", async (req, res) => {
+  const { name, url } = req.body;
+  if (!name || !url) return res.status(400).json({ error: "Missing fields" });
+
+  try {
+    if (isSupabase && supabase) {
+      const { data, error } = await supabase
+        .from('target_resources')
+        .insert([{ name, url }])
+        .select();
+      if (error) throw error;
+      res.json(data[0]);
+    } else {
+      res.status(501).json({ error: "Not implemented for this provider" });
+    }
+  } catch (error) {
+    console.error("Error adding resource:", error);
+    res.status(500).json({ error: "Failed to add resource" });
+  }
+});
+
+app.delete("/api/resources", async (req, res) => {
+  const { url } = req.body;
+  try {
+    if (isSupabase && supabase) {
+      const { error } = await supabase
+        .from('target_resources')
+        .delete()
+        .eq('url', url);
+      if (error) throw error;
+      res.json({ success: true });
+    } else {
+      res.status(501).json({ error: "Not implemented" });
+    }
+  } catch (error) {
+    console.error("Error deleting resource:", error);
+    res.status(500).json({ error: "Failed to delete resource" });
+  }
+});
 
 // API: Generate expiring link
 app.post("/api/generate", async (req, res) => {
