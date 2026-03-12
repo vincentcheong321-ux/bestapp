@@ -12,10 +12,38 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const HARDCODED_RESOURCES = [
+  { name: 'Google', url: 'https://www.google.com' },
+  { name: 'GitHub', url: 'https://github.com' },
+  { name: 'AI Studio', url: 'https://aistudio.google.com' },
+  { name: 'Tailwind CSS', url: 'https://tailwindcss.com' },
+  { name: 'React', url: 'https://react.dev' },
+  { name: '金调KTV APK', url: 'https://github.com/Archmage83/tvapk/blob/master/%E9%87%91%E8%B0%83KTV.apk' },
+  { name: '金调KTV APK (Direct)', url: 'https://github.com/Archmage83/tvapk/raw/refs/heads/master/%E9%87%91%E8%B0%83KTV.apk' },
+  { name: 'VINKTV APK', url: 'https://github.com/vincentcheong321-ux/bestapp/releases/download/vinktv/VINKTV.apk' },
+];
+
 async function startServer() {
   console.log("STARTING SERVER...");
   const app = express();
   const PORT = 3000;
+
+  // Seed database if empty
+  const seedDatabase = async () => {
+    try {
+      const { data, error } = await supabase.from('target_resources').select('count');
+      if (error && error.code !== '42P01') throw error;
+      
+      if (!data || data.length === 0) {
+        console.log("Seeding database with hardcoded resources...");
+        await supabase.from('target_resources').insert(HARDCODED_RESOURCES);
+      }
+    } catch (err) {
+      console.warn("Seeding skipped or failed (table might not exist yet):", err);
+    }
+  };
+
+  await seedDatabase();
 
   app.use(express.json());
 
@@ -36,7 +64,7 @@ async function startServer() {
   api.get("/resources", async (req, res) => {
     console.log("GET RESOURCES HIT");
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('target_resources')
         .select('*')
         .order('created_at', { ascending: true });
@@ -45,6 +73,20 @@ async function startServer() {
         if (error.code === '42P01') return res.json([]);
         throw error;
       }
+
+      // Fallback seeding if count check failed earlier
+      if (!data || data.length === 0) {
+        console.log("Table empty, inserting defaults...");
+        const { data: seededData, error: seedError } = await supabase
+          .from('target_resources')
+          .insert(HARDCODED_RESOURCES)
+          .select();
+        
+        if (!seedError && seededData) {
+          data = seededData;
+        }
+      }
+
       res.json(data || []);
     } catch (error: any) {
       console.error("Error fetching resources:", error);

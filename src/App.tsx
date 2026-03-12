@@ -13,17 +13,6 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const HARDCODED_URLS = [
-  { name: 'Google', url: 'https://www.google.com' },
-  { name: 'GitHub', url: 'https://github.com' },
-  { name: 'AI Studio', url: 'https://aistudio.google.com' },
-  { name: 'Tailwind CSS', url: 'https://tailwindcss.com' },
-  { name: 'React', url: 'https://react.dev' },
-  { name: '金调KTV APK', url: 'https://github.com/Archmage83/tvapk/blob/master/%E9%87%91%E8%B0%83KTV.apk' },
-  { name: '金调KTV APK (Direct)', url: 'https://github.com/Archmage83/tvapk/raw/refs/heads/master/%E9%87%91%E8%B0%83KTV.apk' },
-  { name: 'VINKTV APK', url: 'https://github.com/vincentcheong321-ux/bestapp/releases/download/vinktv/VINKTV.apk' },
-];
-
 const DURATIONS = [
   { label: '1 Minute', value: 1 },
   { label: '5 Minutes', value: 5 },
@@ -32,10 +21,10 @@ const DURATIONS = [
 ];
 
 export default function App() {
-  const [urls, setUrls] = useState<{ name: string; url: string }[]>(HARDCODED_URLS);
+  const [urls, setUrls] = useState<{ name: string; url: string }[]>([]);
   const [newUrlName, setNewUrlName] = useState('');
   const [newUrlValue, setNewUrlValue] = useState('');
-  const [selectedUrl, setSelectedUrl] = useState(HARDCODED_URLS[0].url);
+  const [selectedUrl, setSelectedUrl] = useState('');
   const [duration, setDuration] = useState(DURATIONS[1].value);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
