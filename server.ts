@@ -75,6 +75,16 @@ async function startServer() {
 
 app.use(express.json());
 
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API is working" });
+});
+
 // API: Manage target resources
 app.get("/api/resources", async (req, res) => {
   try {
@@ -93,9 +103,9 @@ app.get("/api/resources", async (req, res) => {
     } else {
       res.json([]); // Fallback for non-supabase
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching resources:", error);
-    res.status(500).json({ error: "Failed to fetch resources" });
+    res.status(500).json({ error: error.message || "Failed to fetch resources" });
   }
 });
 
@@ -114,9 +124,9 @@ app.post("/api/resources", async (req, res) => {
     } else {
       res.status(501).json({ error: "Not implemented for this provider" });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding resource:", error);
-    res.status(500).json({ error: "Failed to add resource" });
+    res.status(500).json({ error: error.message || "Failed to add resource" });
   }
 });
 
@@ -133,9 +143,9 @@ app.delete("/api/resources", async (req, res) => {
     } else {
       res.status(501).json({ error: "Not implemented" });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting resource:", error);
-    res.status(500).json({ error: "Failed to delete resource" });
+    res.status(500).json({ error: error.message || "Failed to delete resource" });
   }
 });
 

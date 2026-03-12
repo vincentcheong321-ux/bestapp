@@ -81,16 +81,19 @@ export default function App() {
         body: JSON.stringify({ name: newUrlName, url: newUrlValue }),
       });
 
-      if (!response.ok) throw new Error('Failed to add resource');
+      const result = await response.json();
 
-      const newResource = await response.json();
-      setUrls([...urls, newResource]);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add resource');
+      }
+
+      setUrls([...urls, result]);
       setNewUrlName('');
       setNewUrlValue('');
-      setSelectedUrl(newResource.url);
+      setSelectedUrl(result.url);
       setError(null);
-    } catch (err) {
-      setError('Failed to save to database. Ensure "target_resources" table exists.');
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
       console.error(err);
     }
   };
