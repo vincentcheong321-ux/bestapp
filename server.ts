@@ -28,9 +28,10 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Seed database if empty
+  // Seed database if empty (non-blocking)
   const seedDatabase = async () => {
     try {
+      console.log("Checking database state...");
       const { data, error } = await supabase.from('target_resources').select('count');
       if (error && error.code !== '42P01') throw error;
       
@@ -43,7 +44,8 @@ async function startServer() {
     }
   };
 
-  await seedDatabase();
+  // Start seeding in background
+  seedDatabase();
 
   app.use(express.json());
 
