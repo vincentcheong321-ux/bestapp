@@ -23,9 +23,7 @@ jobs:
      run: npm run build
 
    - name: Setup Capacitor
-     run: |
-       npx cap init LinkVault com.linkvault.app --web-dir dist
-       npx cap add android
+     run: npx cap add android
 
    - name: Setup JDK
      uses: actions/setup-java@v4
