@@ -15,7 +15,9 @@ jobs:
        node-version: '18'
 
    - name: Install Dependencies
-     run: npm install
+     run: |
+       rm -f package-lock.json
+       npm install
 
    - name: Build Web App
      run: npm run build
