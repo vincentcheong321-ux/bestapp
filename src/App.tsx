@@ -43,6 +43,62 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Cloud APK Builder State
+  const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
+  const [builderRepo, setBuilderRepo] = useState(localStorage.getItem('builderRepo') || '');
+  const [targetRepo, setTargetRepo] = useState('');
+  const [buildLoading, setBuildLoading] = useState(false);
+  const [buildStatus, setBuildStatus] = useState<{type: 'success'|'error', message: string} | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('githubToken', githubToken);
+  }, [githubToken]);
+
+  useEffect(() => {
+    localStorage.setItem('builderRepo', builderRepo);
+  }, [builderRepo]);
+
+  const handleBuildApk = async () => {
+    if (!githubToken || !builderRepo || !targetRepo) {
+      setBuildStatus({ type: 'error', message: 'Please fill in all fields' });
+      return;
+    }
+    
+    setBuildLoading(true);
+    setBuildStatus(null);
+    
+    try {
+      const response = await fetch(`https://api.github.com/repos/${builderRepo}/actions/workflows/build.yml/dispatches`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'Authorization': `token ${githubToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ref: 'main',
+          inputs: {
+            target_repo: targetRepo
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to trigger build. Check your token and repo names.');
+      }
+
+      setBuildStatus({ 
+        type: 'success', 
+        message: 'Build triggered successfully! Check your GitHub Actions tab.' 
+      });
+    } catch (err: any) {
+      setBuildStatus({ type: 'error', message: err.message || 'Something went wrong' });
+    } finally {
+      setBuildLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchResources = async () => {
       try {
@@ -334,41 +390,88 @@ export default function App() {
             {/* Build APK Section */}
             <div className="pt-8 border-t border-black/5">
               <label className="block text-xs font-medium uppercase tracking-wider text-zinc-400 mb-4 px-1">
-                Android Build
+                Cloud APK Builder
               </label>
               <div className="bg-zinc-900 rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
                 <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-white/10 rounded-xl">
                       <ShieldCheck className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">One-Click APK Build</h3>
-                      <p className="text-xs text-zinc-400">Automated build via GitHub Actions</p>
+                      <h3 className="font-semibold">Universal APK Compiler</h3>
+                      <p className="text-xs text-zinc-400">Build any public React/Vue repo into an Android App</p>
                     </div>
                   </div>
                   
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-2 text-xs text-zinc-300">
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span>Dynamic Capacitor Setup</span>
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Your GitHub Token (Requires 'repo' scope)</label>
+                      <input
+                        type="password"
+                        value={githubToken}
+                        onChange={(e) => setGithubToken(e.target.value)}
+                        placeholder="ghp_xxxxxxxxxxxx"
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                      />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-zinc-300">
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span>GitHub Workflow configured</span>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Your Builder Repo (Where build.yml lives)</label>
+                      <input
+                        type="text"
+                        value={builderRepo}
+                        onChange={(e) => setBuilderRepo(e.target.value)}
+                        placeholder="your-username/your-repo"
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Target Repo to Build (e.g., facebook/react)</label>
+                      <input
+                        type="text"
+                        value={targetRepo}
+                        onChange={(e) => setTargetRepo(e.target.value)}
+                        placeholder="username/target-app"
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                      />
                     </div>
                   </div>
 
+                  <AnimatePresence>
+                    {buildStatus && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className={cn(
+                          "mb-4 p-3 rounded-xl text-sm border",
+                          buildStatus.type === 'success' 
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                            : "bg-red-500/10 text-red-400 border-red-500/20"
+                        )}
+                      >
+                        {buildStatus.message}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <button
-                    onClick={() => window.open('https://github.com/settings/tokens', '_blank')}
-                    className="w-full py-3 bg-white text-zinc-900 rounded-xl font-bold text-sm hover:bg-zinc-100 transition-all flex items-center justify-center gap-2 group"
+                    onClick={handleBuildApk}
+                    disabled={buildLoading}
+                    className="w-full py-3 bg-white text-zinc-900 rounded-xl font-bold text-sm hover:bg-zinc-100 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                    Trigger Build on GitHub
+                    {buildLoading ? (
+                      <div className="w-4 h-4 border-2 border-zinc-900/30 border-t-zinc-900 rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                        Trigger Remote Build
+                      </>
+                    )}
                   </button>
                   
                   <p className="mt-4 text-[10px] text-zinc-500 text-center">
-                    Note: Ensure your repository is connected to GitHub to use this feature.
+                    Note: Your token is saved securely in your browser's local storage.
                   </p>
                 </div>
                 
