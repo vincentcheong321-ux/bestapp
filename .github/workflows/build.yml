@@ -1,0 +1,63 @@
+name: Build Remote APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'The GitHub repository to build (e.g., username/my-app)'
+        required: true
+        type: string
+
+jobs:
+ build:
+  runs-on: ubuntu-latest
+
+  steps:
+   - name: Checkout Target Repository
+     uses: actions/checkout@v4
+     with:
+       repository: ${{ github.event.inputs.target_repo }}
+
+   - name: Setup Node.js
+     uses: actions/setup-node@v4
+     with:
+       node-version: '22'
+
+   - name: Install Dependencies
+     run: |
+       rm -rf node_modules package-lock.json
+       npm install
+
+   - name: Build Web App
+     run: npm run build
+
+   - name: Setup Capacitor
+     run: |
+       # If capacitor config doesn't exist, initialize it automatically
+       if [ ! -f "capacitor.config.ts" ] && [ ! -f "capacitor.config.json" ]; then
+         echo "Capacitor config not found. Initializing..."
+         npm install @capacitor/cli @capacitor/core @capacitor/android
+         # Try to guess the build directory (dist or build)
+         BUILD_DIR="dist"
+         if [ -d "build" ]; then BUILD_DIR="build"; fi
+         npx cap init "App" "com.example.app" --web-dir $BUILD_DIR
+       fi
+       npx cap add android
+
+   - name: Setup JDK
+     uses: actions/setup-java@v4
+     with:
+       distribution: 'temurin'
+       java-version: '21'
+
+   - name: Build APK
+     run: |
+       cd android
+       chmod +x gradlew
+       ./gradlew assembleDebug
+
+   - name: Upload APK
+     uses: actions/upload-artifact@v4
+     with:
+       name: apk
+       path: android/app/build/outputs/apk/debug/*.apk
