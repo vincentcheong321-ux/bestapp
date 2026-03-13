@@ -69,6 +69,15 @@ jobs:
        distribution: 'temurin'
        java-version: ${{ github.event.inputs.java_version }}
 
+   - name: Fix Legacy Gradle Repositories (JCenter Shutdown)
+     if: ${{ github.event.inputs.project_type == 'native' }}
+     run: |
+       # JCenter was shut down, causing old Android projects to fail.
+       # This script safely injects google() and mavenCentral() into the build.gradle files.
+       if [ -f "build.gradle" ]; then
+         sed -i 's/jcenter()/jcenter()\n        google()\n        mavenCentral()/g' build.gradle
+       fi
+
    - name: Build APK (Web/Capacitor)
      if: ${{ github.event.inputs.project_type == 'web' }}
      run: |
