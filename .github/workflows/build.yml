@@ -1,0 +1,91 @@
+name: Build Remote APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'The GitHub repository to build (e.g., username/my-app)'
+        required: true
+        type: string
+      project_type:
+        description: 'Type of project (web or native)'
+        required: true
+        default: 'web'
+        type: choice
+        options:
+          - web
+          - native
+      java_version:
+        description: 'Java Version (8, 11, 17, 21)'
+        required: true
+        default: '21'
+        type: choice
+        options:
+          - '8'
+          - '11'
+          - '17'
+          - '21'
+
+jobs:
+ build:
+  runs-on: ubuntu-latest
+
+  steps:
+   - name: Checkout Target Repository
+     uses: actions/checkout@v4
+     with:
+       repository: ${{ github.event.inputs.target_repo }}
+
+   # --- WEB APP STEPS ---
+   - name: Setup Node.js (Web Only)
+     if: ${{ github.event.inputs.project_type == 'web' }}
+     uses: actions/setup-node@v4
+     with:
+       node-version: '22'
+
+   - name: Install Dependencies & Build Web (Web Only)
+     if: ${{ github.event.inputs.project_type == 'web' }}
+     run: |
+       rm -rf node_modules package-lock.json
+       npm install
+       npm run build
+
+   - name: Setup Capacitor (Web Only)
+     if: ${{ github.event.inputs.project_type == 'web' }}
+     run: |
+       if [ ! -f "capacitor.config.ts" ] && [ ! -f "capacitor.config.json" ]; then
+         echo "Capacitor config not found. Initializing..."
+         npm install @capacitor/cli @capacitor/core @capacitor/android
+         BUILD_DIR="dist"
+         if [ -d "build" ]; then BUILD_DIR="build"; fi
+         npx cap init "App" "com.example.app" --web-dir $BUILD_DIR
+       fi
+       npx cap add android
+
+   # --- COMMON / NATIVE STEPS ---
+   - name: Setup JDK
+     uses: actions/setup-java@v4
+     with:
+       distribution: 'temurin'
+       java-version: ${{ github.event.inputs.java_version }}
+
+   - name: Build APK (Web/Capacitor)
+     if: ${{ github.event.inputs.project_type == 'web' }}
+     run: |
+       cd android
+       chmod +x gradlew
+       ./gradlew assembleDebug
+
+   - name: Build APK (Native Android)
+     if: ${{ github.event.inputs.project_type == 'native' }}
+     run: |
+       chmod +x gradlew
+       ./gradlew assembleDebug
+
+   - name: Upload APK
+     uses: actions/upload-artifact@v4
+     with:
+       name: apk
+       path: |
+         android/app/build/outputs/apk/debug/*.apk
+         app/build/outputs/apk/debug/*.apk
