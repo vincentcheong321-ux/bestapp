@@ -15,6 +15,16 @@ on:
         options:
           - web
           - native
+      java_version:
+        description: 'Java Version (8, 11, 17, 21)'
+        required: true
+        default: '21'
+        type: choice
+        options:
+          - '8'
+          - '11'
+          - '17'
+          - '21'
 
 jobs:
  build:
@@ -57,7 +67,7 @@ jobs:
      uses: actions/setup-java@v4
      with:
        distribution: 'temurin'
-       java-version: '21'
+       java-version: ${{ github.event.inputs.java_version }}
 
    - name: Build APK (Web/Capacitor)
      if: ${{ github.event.inputs.project_type == 'web' }}

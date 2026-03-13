@@ -48,6 +48,7 @@ export default function App() {
   const [builderRepo, setBuilderRepo] = useState(localStorage.getItem('builderRepo') || '');
   const [targetRepo, setTargetRepo] = useState('');
   const [projectType, setProjectType] = useState<'web' | 'native'>('web');
+  const [javaVersion, setJavaVersion] = useState('21');
   const [buildLoading, setBuildLoading] = useState(false);
   const [buildStatus, setBuildStatus] = useState<{type: 'success'|'error', message: string} | null>(null);
 
@@ -80,7 +81,8 @@ export default function App() {
           ref: 'main',
           inputs: {
             target_repo: targetRepo,
-            project_type: projectType
+            project_type: projectType,
+            java_version: javaVersion
           }
         })
       });
@@ -463,6 +465,19 @@ export default function App() {
                           Native Android (Java/Kotlin)
                         </button>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Java Version</label>
+                      <select
+                        value={javaVersion}
+                        onChange={(e) => setJavaVersion(e.target.value)}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white appearance-none"
+                      >
+                        <option value="21">Java 21 (Latest Capacitor/Android)</option>
+                        <option value="17">Java 17 (Modern Android)</option>
+                        <option value="11">Java 11 (Older Android)</option>
+                        <option value="8">Java 8 (Legacy Android - Gradle 4.x)</option>
+                      </select>
                     </div>
                   </div>
 
