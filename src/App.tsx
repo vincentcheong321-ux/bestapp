@@ -47,6 +47,7 @@ export default function App() {
   const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
   const [builderRepo, setBuilderRepo] = useState(localStorage.getItem('builderRepo') || '');
   const [targetRepo, setTargetRepo] = useState('');
+  const [projectType, setProjectType] = useState<'web' | 'native'>('web');
   const [buildLoading, setBuildLoading] = useState(false);
   const [buildStatus, setBuildStatus] = useState<{type: 'success'|'error', message: string} | null>(null);
 
@@ -78,7 +79,8 @@ export default function App() {
         body: JSON.stringify({
           ref: 'main',
           inputs: {
-            target_repo: targetRepo
+            target_repo: targetRepo,
+            project_type: projectType
           }
         })
       });
@@ -434,6 +436,33 @@ export default function App() {
                         placeholder="username/target-app"
                         className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Project Type</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setProjectType('web')}
+                          className={cn(
+                            "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
+                            projectType === 'web'
+                              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                              : "bg-black/20 border-white/10 text-zinc-400 hover:bg-white/5"
+                          )}
+                        >
+                          Web App (React/Vue)
+                        </button>
+                        <button
+                          onClick={() => setProjectType('native')}
+                          className={cn(
+                            "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
+                            projectType === 'native'
+                              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                              : "bg-black/20 border-white/10 text-zinc-400 hover:bg-white/5"
+                          )}
+                        >
+                          Native Android (Java/Kotlin)
+                        </button>
+                      </div>
                     </div>
                   </div>
 
