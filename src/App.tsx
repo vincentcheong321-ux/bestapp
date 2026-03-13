@@ -331,6 +331,51 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
+            {/* Build APK Section */}
+            <div className="pt-8 border-t border-black/5">
+              <label className="block text-xs font-medium uppercase tracking-wider text-zinc-400 mb-4 px-1">
+                Android Build
+              </label>
+              <div className="bg-zinc-900 rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-white/10 rounded-xl">
+                      <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">One-Click APK Build</h3>
+                      <p className="text-xs text-zinc-400">Automated build via GitHub Actions</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-2 text-xs text-zinc-300">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>Dynamic Capacitor Setup</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-300">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>GitHub Workflow configured</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => window.open('https://github.com/settings/tokens', '_blank')}
+                    className="w-full py-3 bg-white text-zinc-900 rounded-xl font-bold text-sm hover:bg-zinc-100 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+                    Trigger Build on GitHub
+                  </button>
+                  
+                  <p className="mt-4 text-[10px] text-zinc-500 text-center">
+                    Note: Ensure your repository is connected to GitHub to use this feature.
+                  </p>
+                </div>
+                
+                {/* Decorative background element */}
+                <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+              </div>
+            </div>
           </div>
         </main>
 
