@@ -1,0 +1,44 @@
+name: Build APK
+
+on: [push]
+
+jobs:
+ build:
+  runs-on: ubuntu-latest
+
+  steps:
+   - uses: actions/checkout@v3
+
+   - name: Setup Node.js
+     uses: actions/setup-node@v3
+     with:
+       node_version: '18'
+
+   - name: Install Dependencies
+     run: npm install
+
+   - name: Build Web App
+     run: npm run build
+
+   - name: Setup Capacitor
+     run: |
+       npx cap init LinkVault com.linkvault.app --web-dir dist
+       npx cap add android
+
+   - name: Setup JDK
+     uses: actions/setup-java@v3
+     with:
+       distribution: 'temurin'
+       java-version: '11'
+
+   - name: Build APK
+     run: |
+       cd android
+       chmod +x gradlew
+       ./gradlew assembleDebug
+
+   - name: Upload APK
+     uses: actions/upload-artifact@v3
+     with:
+       name: apk
+       path: android/app/build/outputs/apk/debug/*.apk
