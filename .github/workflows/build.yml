@@ -73,10 +73,9 @@ jobs:
      if: ${{ github.event.inputs.project_type == 'native' }}
      run: |
        # JCenter was shut down, causing old Android projects to fail.
-       # This script safely injects google() and mavenCentral() into the build.gradle files.
-       if [ -f "build.gradle" ]; then
-         sed -i 's/jcenter()/jcenter()\n        google()\n        mavenCentral()/g' build.gradle
-       fi
+       # Older Gradle versions (< 4.0) don't support the google() shortcut.
+       # We inject the full maven URL and mavenCentral() into all build.gradle files.
+       find . -name "build.gradle" -exec sed -i "s|jcenter()|jcenter()\n        maven { url 'https://maven.google.com' }\n        mavenCentral()|g" {} +
 
    - name: Build APK (Web/Capacitor)
      if: ${{ github.event.inputs.project_type == 'web' }}
