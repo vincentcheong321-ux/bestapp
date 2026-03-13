@@ -79,6 +79,9 @@ jobs:
 
    - name: Build APK (Web/Capacitor)
      if: ${{ github.event.inputs.project_type == 'web' }}
+     env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       GITHUB_ACTOR: ${{ github.actor }}
      run: |
        cd android
        chmod +x gradlew
@@ -86,6 +89,9 @@ jobs:
 
    - name: Build APK (Native Android)
      if: ${{ github.event.inputs.project_type == 'native' }}
+     env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       GITHUB_ACTOR: ${{ github.actor }}
      run: |
        chmod +x gradlew
        ./gradlew assembleDebug --stacktrace --info
