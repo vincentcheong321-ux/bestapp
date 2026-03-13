@@ -16,7 +16,8 @@ jobs:
 
    - name: Install Dependencies
      run: |
-       rm -f package-lock.json
+       rm -rf node_modules package-lock.json
+       npm install -g npm@latest
        npm install
 
    - name: Build Web App
