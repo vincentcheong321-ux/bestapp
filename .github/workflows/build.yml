@@ -74,8 +74,8 @@ jobs:
      run: |
        # JCenter was shut down, causing old Android projects to fail.
        # Older Gradle versions (< 4.0) don't support the google() shortcut.
-       # We inject the full maven URL and mavenCentral() into all build.gradle files.
-       find . -name "build.gradle" -exec sed -i "s|jcenter()|jcenter()\n        maven { url 'https://maven.google.com' }\n        mavenCentral()|g" {} +
+       # Furthermore, very old Android Gradle Plugins (like 2.3.3) are hosted on a specific legacy Google Maven URL.
+       find . -name "build.gradle" -exec sed -i "s|jcenter()|jcenter()\n        maven { url 'https://maven.google.com' }\n        maven { url 'https://dl.google.com/dl/android/maven2/' }\n        mavenCentral()|g" {} +
 
    - name: Build APK (Web/Capacitor)
      if: ${{ github.event.inputs.project_type == 'web' }}
