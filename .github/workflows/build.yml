@@ -78,6 +78,14 @@ jobs:
        else
          npx cap sync android
        fi
+       
+       # Allow cleartext traffic for HTTP APIs (prevents Android from blocking non-HTTPS requests)
+       MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+       if [ -f "$MANIFEST_PATH" ]; then
+         if ! grep -q "usesCleartextTraffic" "$MANIFEST_PATH"; then
+           sed -i 's|<application|<application android:usesCleartextTraffic="true"|g' "$MANIFEST_PATH"
+         fi
+       fi
 
    # --- COMMON / NATIVE STEPS ---
    - name: Setup JDK
