@@ -53,14 +53,31 @@ jobs:
    - name: Setup Capacitor (Web Only)
      if: ${{ github.event.inputs.project_type == 'web' }}
      run: |
+       # Detect build directory
+       BUILD_DIR="dist"
+       if [ -d "build" ]; then BUILD_DIR="build"; fi
+       if [ -d "out" ]; then BUILD_DIR="out"; fi
+       
+       # Fix absolute paths in index.html to be relative (crucial for Capacitor to load CSS/JS)
+       if [ -f "$BUILD_DIR/index.html" ]; then
+         echo "Patching index.html for relative paths..."
+         sed -i 's|href="/|href="|g' $BUILD_DIR/index.html
+         sed -i 's|src="/|src="|g' $BUILD_DIR/index.html
+       fi
+
+       # Initialize Capacitor if missing
        if [ ! -f "capacitor.config.ts" ] && [ ! -f "capacitor.config.json" ]; then
          echo "Capacitor config not found. Initializing..."
          npm install @capacitor/cli @capacitor/core @capacitor/android
-         BUILD_DIR="dist"
-         if [ -d "build" ]; then BUILD_DIR="build"; fi
          npx cap init "App" "com.example.app" --web-dir $BUILD_DIR
        fi
-       npx cap add android
+       
+       # Add android platform or sync if it already exists
+       if [ ! -d "android" ]; then
+         npx cap add android
+       else
+         npx cap sync android
+       fi
 
    # --- COMMON / NATIVE STEPS ---
    - name: Setup JDK
