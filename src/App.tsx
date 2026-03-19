@@ -33,9 +33,13 @@ const DURATIONS = [
 
 // Helper to get the correct backend URL when running inside a mobile app (Capacitor)
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && (window.location.origin.includes('localhost') || window.location.origin.includes('capacitor'))) {
-    // Use the live backend URL when running on a phone
-    return 'https://ais-pre-n36gudu4cq4akfjot7lbqg-248121278358.asia-southeast1.run.app';
+  if (typeof window !== 'undefined' && (
+      window.location.origin.includes('localhost') || 
+      window.location.origin.includes('capacitor') || 
+      window.location.protocol === 'file:'
+  )) {
+    // Use the live Vercel backend URL when running on a phone
+    return 'https://bestapp-phi.vercel.app';
   }
   return ''; // Use relative paths when running on the web
 };
@@ -130,10 +134,11 @@ export default function App() {
           }
         } else {
           console.error(`[App] Fetch failed with status: ${response.status}`);
-          throw new Error('Failed to fetch');
+          throw new Error(`Failed to fetch (${response.status})`);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("[App] Failed to fetch resources:", err);
+        setError(`Connection error: ${err.message}. Trying to reach: ${getApiBaseUrl() || 'relative path'}`);
         setUrls(HARDCODED_URLS);
         setSelectedUrl(HARDCODED_URLS[0].url);
       }
@@ -177,7 +182,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('[App] Add resource error:', err);
-      setError(`Failed to add resource: ${err.message || 'Unknown error'}`);
+      setError(`Failed to add resource: ${err.message || 'Unknown error'} (URL: ${getApiBaseUrl()}/api/resources)`);
     }
   };
 
@@ -231,7 +236,7 @@ export default function App() {
       setExpiresAt(data.expiresAt);
     } catch (err: any) {
       console.error('[App] Generate catch block error:', err);
-      setError(`Error: ${err.message || 'Something went wrong. Please try again.'}`);
+      setError(`Error: ${err.message || 'Failed to fetch'} (URL: ${getApiBaseUrl()}/api/generate)`);
     } finally {
       setLoading(false);
     }
