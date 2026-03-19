@@ -166,7 +166,7 @@ app.post("/api/generate", async (req, res) => {
       console.log("SQLite insert successful");
     }
 
-    let appUrl = process.env.APP_URL || "https://bestapp-phi.vercel.app";
+    let appUrl = process.env.APP_URL || "https://bestapp-vin.vercel.app";
     const expiringUrl = `${appUrl}/r/${token}`;
     console.log("Returning success:", { expiringUrl, expiresAt, token });
     res.json({ expiringUrl, expiresAt, token });

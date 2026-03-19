@@ -39,7 +39,7 @@ const getApiBaseUrl = () => {
       window.location.protocol === 'file:'
   )) {
     // Use the live Vercel backend URL when running on a phone
-    return 'https://bestapp-phi.vercel.app';
+    return 'https://bestapp-vin.vercel.app';
   }
   return ''; // Use relative paths when running on the web
 };
