@@ -5,8 +5,8 @@ import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
 
 // Hardcoded Supabase credentials (WARNING: Security risk)
-const SUPABASE_URL = "https://zxxlkolwjtsnvlunpxpd.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4eGxrb2x3anRzbnZsdW5weHBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTAyMzksImV4cCI6MjA4ODcyNjIzOX0.cwFCMUWiaFV2xm2Diab2h17ZQd5wNuqPZ1TMQ8hDYQU";
+const SUPABASE_URL = "https://usgowottnszzozjhxque.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzZ293b3R0bnN6em96amh4cXVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NDkxMDMsImV4cCI6MjA4MDMyNTEwM30.yxu5caAfXaRag0x5jNSc6wSHUSfmHNeNVbaf_iv9w_w";
 
 const isSupabase = true;
 const isVercelPostgres = false;
