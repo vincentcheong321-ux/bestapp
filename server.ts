@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
@@ -56,6 +57,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+app.use(cors());
 app.use(express.json());
 
 // API: Get all target resources

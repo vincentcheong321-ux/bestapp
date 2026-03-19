@@ -31,6 +31,15 @@ const DURATIONS = [
   { label: '1 Day', value: 1440 },
 ];
 
+// Helper to get the correct backend URL when running inside a mobile app (Capacitor)
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && (window.location.origin.includes('localhost') || window.location.origin.includes('capacitor'))) {
+    // Use the live backend URL when running on a phone
+    return 'https://ais-pre-n36gudu4cq4akfjot7lbqg-248121278358.asia-southeast1.run.app';
+  }
+  return ''; // Use relative paths when running on the web
+};
+
 export default function App() {
   const [urls, setUrls] = useState<{ id?: number; name: string; url: string }[]>([]);
   const [newUrlName, setNewUrlName] = useState('');
@@ -106,9 +115,12 @@ export default function App() {
   useEffect(() => {
     const fetchResources = async () => {
       try {
-        const response = await fetch('/api/resources');
+        const baseUrl = getApiBaseUrl();
+        console.log(`[App] Fetching resources from: ${baseUrl}/api/resources`);
+        const response = await fetch(`${baseUrl}/api/resources`);
         if (response.ok) {
           const data = await response.json();
+          console.log(`[App] Fetched ${data.length} resources`);
           if (data && data.length > 0) {
             setUrls(data);
             setSelectedUrl(data[0].url);
@@ -116,9 +128,12 @@ export default function App() {
             setUrls(HARDCODED_URLS);
             setSelectedUrl(HARDCODED_URLS[0].url);
           }
+        } else {
+          console.error(`[App] Fetch failed with status: ${response.status}`);
+          throw new Error('Failed to fetch');
         }
       } catch (err) {
-        console.error("Failed to fetch resources:", err);
+        console.error("[App] Failed to fetch resources:", err);
         setUrls(HARDCODED_URLS);
         setSelectedUrl(HARDCODED_URLS[0].url);
       }
@@ -139,7 +154,9 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('/api/resources', {
+      const baseUrl = getApiBaseUrl();
+      console.log(`[App] Adding resource via ${baseUrl}/api/resources`);
+      const response = await fetch(`${baseUrl}/api/resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newUrlName, url: newUrlValue }),
@@ -147,17 +164,20 @@ export default function App() {
 
       if (response.ok) {
         const newEntry = await response.json();
+        console.log(`[App] Successfully added resource:`, newEntry);
         setUrls([newEntry, ...urls]);
         setNewUrlName('');
         setNewUrlValue('');
         setSelectedUrl(newEntry.url);
         setError(null);
       } else {
-        throw new Error('Failed to add resource');
+        const errText = await response.text();
+        console.error(`[App] Add resource failed: ${response.status} - ${errText}`);
+        throw new Error(`Failed to add resource: ${response.status}`);
       }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to add resource to database.');
+    } catch (err: any) {
+      console.error('[App] Add resource error:', err);
+      setError(`Failed to add resource: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -166,9 +186,11 @@ export default function App() {
     
     if (id) {
       try {
-        await fetch(`/api/resources/${id}`, { method: 'DELETE' });
+        const baseUrl = getApiBaseUrl();
+        console.log(`[App] Deleting resource ${id} via ${baseUrl}/api/resources/${id}`);
+        await fetch(`${baseUrl}/api/resources/${id}`, { method: 'DELETE' });
       } catch (err) {
-        console.error("Failed to delete resource:", err);
+        console.error("[App] Failed to delete resource:", err);
       }
     }
 
@@ -185,20 +207,31 @@ export default function App() {
     setGeneratedUrl(null);
 
     try {
-      const response = await fetch('/api/generate', {
+      const baseUrl = getApiBaseUrl();
+      console.log(`[App] Generating link via ${baseUrl}/api/generate`);
+      console.log(`[App] Payload:`, { targetUrl: selectedUrl, durationMinutes: duration });
+
+      const response = await fetch(`${baseUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUrl: selectedUrl, durationMinutes: duration }),
       });
 
-      if (!response.ok) throw new Error('Failed to generate link');
+      console.log(`[App] Generate response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[App] Generate failed: ${errText}`);
+        throw new Error(`Server error (${response.status}): ${errText}`);
+      }
 
       const data = await response.json();
+      console.log(`[App] Generate success:`, data);
       setGeneratedUrl(data.expiringUrl);
       setExpiresAt(data.expiresAt);
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
-      console.error(err);
+    } catch (err: any) {
+      console.error('[App] Generate catch block error:', err);
+      setError(`Error: ${err.message || 'Something went wrong. Please try again.'}`);
     } finally {
       setLoading(false);
     }
