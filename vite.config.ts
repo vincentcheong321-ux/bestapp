@@ -12,10 +12,13 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       legacy({
         targets: ['defaults', 'not IE 11', 'android >= 6'],
+        additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
       }),
     ],
     build: {
       target: 'es2015',
+      cssTarget: 'chrome50',
+      minify: 'terser',
     },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

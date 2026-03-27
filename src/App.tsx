@@ -251,20 +251,20 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-zinc-900 font-sans selection:bg-zinc-200">
-      <div className="max-w-2xl mx-auto px-6 py-20">
+    <div className="min-h-screen bg-[#f5f5f5] text-zinc-900 font-sans selection:bg-zinc-200 overflow-x-hidden">
+      <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-20">
         {/* Header */}
-        <header className="mb-12 text-center">
+        <header className="mb-8 sm:mb-12 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white shadow-sm border border-black/5 mb-6">
             <ShieldCheck className="w-6 h-6 text-zinc-800" />
           </div>
-          <h1 className="text-4xl font-medium tracking-tight mb-3">LinkVault</h1>
-          <p className="text-zinc-500">Create secure, time-limited access to your resources.</p>
+          <h1 className="text-3xl sm:text-4xl font-medium tracking-tight mb-3">LinkVault</h1>
+          <p className="text-sm sm:text-base text-zinc-500">Create secure, time-limited access to your resources.</p>
         </header>
 
         {/* Main Card */}
-        <main className="bg-white rounded-[32px] p-8 shadow-sm border border-black/5">
-          <div className="space-y-8">
+        <main className="bg-white rounded-2xl sm:rounded-[32px] p-5 sm:p-8 shadow-sm border border-black/5">
+          <div className="space-y-6 sm:space-y-8">
             {/* URL Selection */}
             <div>
               <label className="block text-xs font-medium uppercase tracking-wider text-zinc-400 mb-4 px-1">
@@ -399,26 +399,28 @@ export default function App() {
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">
                       Your Secure Link
                     </label>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-white border border-black/5 rounded-xl px-4 py-3 text-sm font-mono text-zinc-600 truncate">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <div className="flex-1 bg-white border border-black/5 rounded-xl px-4 py-3 text-sm font-mono text-zinc-600 truncate min-w-0">
                         {generatedUrl}
                       </div>
-                      <button
-                        onClick={copyToClipboard}
-                        className="p-3 bg-white border border-black/5 rounded-xl hover:bg-zinc-50 transition-colors text-zinc-600"
-                        title="Copy to clipboard"
-                      >
-                        {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                      </button>
-                      <a
-                        href={generatedUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 bg-white border border-black/5 rounded-xl hover:bg-zinc-50 transition-colors text-zinc-600"
-                        title="Open link"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={copyToClipboard}
+                          className="p-3 bg-white border border-black/5 rounded-xl hover:bg-zinc-50 transition-colors text-zinc-600"
+                          title="Copy to clipboard"
+                        >
+                          {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        <a
+                          href={generatedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-3 bg-white border border-black/5 rounded-xl hover:bg-zinc-50 transition-colors text-zinc-600"
+                          title="Open link"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
                     </div>
                     
                     <div className="mt-4 flex items-center gap-2 text-xs text-zinc-400">

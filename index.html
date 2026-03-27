@@ -24,9 +24,29 @@
         }
       })();
     </script>
+    <script>
+      // Global polyfill for globalThis
+      if (typeof globalThis === 'undefined') {
+        (function() {
+          if (typeof self !== 'undefined') {
+            self.globalThis = self;
+          } else if (typeof window !== 'undefined') {
+            window.globalThis = window;
+          } else if (typeof global !== 'undefined') {
+            global.globalThis = global;
+          }
+        })();
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="font-family: sans-serif; text-align: center; padding: 50px; color: #666;">
+        <h2 style="color: #1a1a1a;">Loading LinkVault...</h2>
+        <p>If this page stays blank, your browser might be too old or JavaScript is disabled.</p>
+        <p style="font-size: 0.8rem; margin-top: 20px;">LinkVault requires a modern browser (Chrome 50+, Android 6+).<br>Try opening the <b>Shared App URL</b> if you are currently in the development preview.</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
