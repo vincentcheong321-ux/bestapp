@@ -81,9 +81,27 @@ jobs:
        
        # Allow cleartext traffic for HTTP APIs (prevents Android from blocking non-HTTPS requests)
        MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+       SECURITY_CONFIG_PATH="android/app/src/main/res/xml/network_security_config.xml"
+       
        if [ -f "$MANIFEST_PATH" ]; then
-         if ! grep -q "usesCleartextTraffic" "$MANIFEST_PATH"; then
-           sed -i 's|<application|<application android:usesCleartextTraffic="true"|g' "$MANIFEST_PATH"
+         # Create network security config directory if it doesn't exist
+         mkdir -p android/app/src/main/res/xml
+         
+         # Create the security config file
+         cat <<EOF > "$SECURITY_CONFIG_PATH"
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+EOF
+
+         # Update AndroidManifest.xml to use the security config
+         if ! grep -q "android:networkSecurityConfig" "$MANIFEST_PATH"; then
+           sed -i 's|<application|<application android:networkSecurityConfig="@xml/network_security_config" android:usesCleartextTraffic="true"|g' "$MANIFEST_PATH"
          fi
        fi
 
