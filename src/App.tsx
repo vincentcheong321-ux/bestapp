@@ -59,6 +59,7 @@ export default function App() {
   // Cloud APK Builder State
   const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
   const [builderRepo, setBuilderRepo] = useState(localStorage.getItem('builderRepo') || '');
+  const [builderBranch, setBuilderBranch] = useState(localStorage.getItem('builderBranch') || 'main');
   const [targetRepo, setTargetRepo] = useState('');
   const [projectType, setProjectType] = useState<'web' | 'native'>('web');
   const [javaVersion, setJavaVersion] = useState('21');
@@ -72,6 +73,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('builderRepo', builderRepo);
   }, [builderRepo]);
+
+  useEffect(() => {
+    localStorage.setItem('builderBranch', builderBranch);
+  }, [builderBranch]);
 
   const handleBuildApk = async () => {
     if (!githubToken || !builderRepo || !targetRepo) {
@@ -91,7 +96,7 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ref: 'main',
+          ref: builderBranch,
           inputs: {
             target_repo: targetRepo,
             project_type: projectType,
@@ -444,14 +449,30 @@ export default function App() {
               </label>
               <div className="bg-zinc-900 rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
                 <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-white/10 rounded-xl">
-                      <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white/10 rounded-xl">
+                        <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Universal APK Compiler</h3>
+                        <p className="text-xs text-zinc-400">Build any public React/Vue repo into an Android App</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold">Universal APK Compiler</h3>
-                      <p className="text-xs text-zinc-400">Build any public React/Vue repo into an Android App</p>
-                    </div>
+                    <button
+                      onClick={() => {
+                        fetch('/github-workflow-template.yml')
+                          .then(res => res.text())
+                          .then(text => {
+                            navigator.clipboard.writeText(text);
+                            alert('Workflow template copied to clipboard! Create .github/workflows/build.yml in your repo and paste this content.');
+                          });
+                      }}
+                      className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy build.yml Template
+                    </button>
                   </div>
                   
                   <div className="space-y-4 mb-6">
@@ -465,15 +486,27 @@ export default function App() {
                         className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs text-zinc-400 mb-1">Your Builder Repo (Where build.yml lives)</label>
-                      <input
-                        type="text"
-                        value={builderRepo}
-                        onChange={(e) => setBuilderRepo(e.target.value)}
-                        placeholder="your-username/your-repo"
-                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Your Builder Repo (Where build.yml lives)</label>
+                        <input
+                          type="text"
+                          value={builderRepo}
+                          onChange={(e) => setBuilderRepo(e.target.value)}
+                          placeholder="your-username/your-repo"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Builder Branch (Default: main)</label>
+                        <input
+                          type="text"
+                          value={builderBranch}
+                          onChange={(e) => setBuilderBranch(e.target.value)}
+                          placeholder="main or master"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs text-zinc-400 mb-1">Target Repo to Build (e.g., facebook/react)</label>
