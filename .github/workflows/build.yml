@@ -1,6 +1,8 @@
 name: Build Remote APK
 
 on:
+  push:
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       target_repo:
@@ -27,14 +29,13 @@ on:
           - '21'
 
 jobs:
- build:
-  runs-on: ubuntu-latest
-
-  steps:
-   - name: Checkout Target Repository
-     uses: actions/checkout@v4
-     with:
-       repository: ${{ github.event.inputs.target_repo }}
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.inputs.target_repo || github.repository }}
 
    # --- WEB APP STEPS ---
    - name: Setup Node.js (Web Only)

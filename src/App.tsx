@@ -102,6 +102,12 @@ export default function App() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+        if (response.status === 404) {
+          throw new Error('Workflow file not found. Ensure .github/workflows/build.yml exists in your builder repo on the default branch.');
+        }
+        if (response.status === 422) {
+          throw new Error('Workflow does not have "workflow_dispatch" trigger or inputs are invalid. Check your build.yml file.');
+        }
         throw new Error(errData.message || 'Failed to trigger build. Check your token and repo names.');
       }
 
