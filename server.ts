@@ -81,6 +81,17 @@ async function startServer() {
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[Server] ${req.method} ${req.url}`);
+  next();
+});
+
+// API: Health Check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString() });
+});
+
 // API: Send Email with APK
 app.post("/api/send-email", async (req, res) => {
   const { to, customerName, apkUrl, appName } = req.body;

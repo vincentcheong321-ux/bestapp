@@ -33,13 +33,19 @@ const DURATIONS = [
 
 // Helper to get the correct backend URL when running inside a mobile app (Capacitor)
 const getApiBaseUrl = () => {
+  // 1. Try localStorage (User manual override)
+  const savedUrl = typeof window !== 'undefined' ? localStorage.getItem('backend_api_url') : null;
+  if (savedUrl) return savedUrl;
+
+  // 2. Try process.env.APP_URL (Injected by Vite)
   const envAppUrl = process.env.APP_URL;
+
   if (typeof window !== 'undefined' && (
       window.location.origin.includes('localhost') || 
       window.location.origin.includes('capacitor') || 
       window.location.protocol === 'file:'
   )) {
-    // Use the current app's URL if available, otherwise fallback to Vercel
+    // Fallback to current app's URL if available, otherwise fallback to Vercel
     return envAppUrl || 'https://bestapp-vin.vercel.app';
   }
   return ''; // Use relative paths when running on the web
@@ -62,6 +68,8 @@ export default function App() {
   const [customerName, setCustomerName] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [backendUrl, setBackendUrl] = useState(localStorage.getItem('backend_api_url') || '');
+  const [healthStatus, setHealthStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Cloud APK Builder State
   const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
@@ -84,6 +92,30 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('builderBranch', builderBranch);
   }, [builderBranch]);
+
+  useEffect(() => {
+    if (backendUrl) {
+      localStorage.setItem('backend_api_url', backendUrl);
+    } else {
+      localStorage.removeItem('backend_api_url');
+    }
+  }, [backendUrl]);
+
+  const handleCheckHealth = async () => {
+    setHealthStatus(null);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const response = await fetch(`${baseUrl}/api/health`);
+      if (response.ok) {
+        const data = await response.json();
+        setHealthStatus({ type: 'success', message: `Backend is OK! (${data.time})` });
+      } else {
+        setHealthStatus({ type: 'error', message: `Backend returned ${response.status}: ${response.statusText}` });
+      }
+    } catch (err: any) {
+      setHealthStatus({ type: 'error', message: `Connection failed: ${err.message}` });
+    }
+  };
 
   const handleBuildApk = async () => {
     if (!githubToken || !builderRepo || !targetRepo) {
@@ -552,6 +584,35 @@ export default function App() {
                   </div>
                   
                   <div className="space-y-4 mb-6">
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="block text-xs text-zinc-400 mb-1">Backend API URL (For APK to connect back)</label>
+                        <input
+                          type="text"
+                          value={backendUrl}
+                          onChange={(e) => setBackendUrl(e.target.value)}
+                          placeholder="https://your-app-url.run.app"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                        />
+                      </div>
+                      <button
+                        onClick={handleCheckHealth}
+                        className="px-4 py-2 bg-white/10 border border-white/10 rounded-xl text-xs font-medium hover:bg-white/20 transition-all text-white"
+                      >
+                        Check Health
+                      </button>
+                    </div>
+                    {healthStatus && (
+                      <div className={cn(
+                        "text-[10px] px-2 py-1 rounded-lg",
+                        healthStatus.type === 'success' ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                      )}>
+                        {healthStatus.message}
+                      </div>
+                    )}
+                    <p className="mt-1 text-[10px] text-zinc-500">
+                      Leave empty to use relative paths (web) or default fallback (APK).
+                    </p>
                     <div>
                       <label className="block text-xs text-zinc-400 mb-1">Your GitHub Token (Requires 'repo' scope)</label>
                       <input
