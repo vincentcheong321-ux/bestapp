@@ -682,7 +682,7 @@ export default function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Branch (e.g., main or master)</label>
+                        <label className="block text-xs text-zinc-400 mb-1">Branch (Try 'main' if 'master' fails)</label>
                         <input
                           type="text"
                           value={builderBranch}
