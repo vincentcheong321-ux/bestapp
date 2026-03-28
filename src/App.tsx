@@ -66,6 +66,7 @@ export default function App() {
   // Cloud APK Builder State
   const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
   const [builderRepo, setBuilderRepo] = useState(localStorage.getItem('builderRepo') || '');
+  const [builderBranch, setBuilderBranch] = useState(localStorage.getItem('builderBranch') || 'main');
   const [targetRepo, setTargetRepo] = useState('');
   const [projectType, setProjectType] = useState<'web' | 'native'>('web');
   const [javaVersion, setJavaVersion] = useState('21');
@@ -79,6 +80,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('builderRepo', builderRepo);
   }, [builderRepo]);
+
+  useEffect(() => {
+    localStorage.setItem('builderBranch', builderBranch);
+  }, [builderBranch]);
 
   const handleBuildApk = async () => {
     if (!githubToken || !builderRepo || !targetRepo) {
@@ -98,7 +103,7 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ref: 'main',
+          ref: builderBranch,
           inputs: {
             target_repo: targetRepo,
             project_type: projectType,
@@ -110,12 +115,12 @@ export default function App() {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         if (response.status === 404) {
-          throw new Error('Workflow file not found. Ensure .github/workflows/build.yml exists in your builder repo on the default branch.');
+          throw new Error(`Workflow file not found. Ensure .github/workflows/build.yml exists in ${builderRepo} on the '${builderBranch}' branch.`);
         }
         if (response.status === 422) {
-          throw new Error('Workflow does not have "workflow_dispatch" trigger or inputs are invalid. Check your build.yml file.');
+          throw new Error(`Invalid request (422). Possible causes: 1) The '${builderBranch}' branch doesn't exist. 2) build.yml is missing 'workflow_dispatch'. 3) Inputs are invalid. GitHub says: ${errData.message || 'Unprocessable Entity'}`);
         }
-        throw new Error(errData.message || 'Failed to trigger build. Check your token and repo names.');
+        throw new Error(errData.message || `Failed to trigger build (Status ${response.status}). Check your token and repo names.`);
       }
 
       setBuildStatus({ 
@@ -557,15 +562,27 @@ export default function App() {
                         className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs text-zinc-400 mb-1">Your Builder Repo (Where build.yml lives)</label>
-                      <input
-                        type="text"
-                        value={builderRepo}
-                        onChange={(e) => setBuilderRepo(e.target.value)}
-                        placeholder="your-username/your-repo"
-                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Builder Repo (owner/repo)</label>
+                        <input
+                          type="text"
+                          value={builderRepo}
+                          onChange={(e) => setBuilderRepo(e.target.value)}
+                          placeholder="your-username/your-repo"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Branch (e.g., main or master)</label>
+                        <input
+                          type="text"
+                          value={builderBranch}
+                          onChange={(e) => setBuilderBranch(e.target.value)}
+                          placeholder="main"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs text-zinc-400 mb-1">Target Repo to Build (e.g., facebook/react)</label>

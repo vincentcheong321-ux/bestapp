@@ -7,7 +7,7 @@ on:
     inputs:
       target_repo:
         description: 'The GitHub repository to build (e.g., username/my-app)'
-        required: true
+        required: false
         type: string
       project_type:
         description: 'Type of project (web or native)'
