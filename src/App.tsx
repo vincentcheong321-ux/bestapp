@@ -70,6 +70,7 @@ export default function App() {
   const [emailSent, setEmailSent] = useState(false);
   const [backendUrl, setBackendUrl] = useState(localStorage.getItem('backend_api_url') || '');
   const [healthStatus, setHealthStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Cloud APK Builder State
   const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
@@ -343,14 +344,89 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-zinc-900 font-sans selection:bg-zinc-200 overflow-x-hidden">
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSettings(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-md bg-white border border-black/5 rounded-[32px] p-8 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-xl font-semibold text-zinc-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-zinc-800" />
+                  App Settings
+                </h3>
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+                >
+                  <Check className="w-5 h-5 text-zinc-400" />
+                </button>
+              </div>
+
+              <div className="space-y-8">
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wider text-zinc-400 mb-4 px-1">Backend API URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={backendUrl}
+                      onChange={(e) => setBackendUrl(e.target.value)}
+                      placeholder="https://your-app-url.run.app"
+                      className="flex-1 bg-zinc-50 border border-black/5 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200 transition-all text-zinc-900 placeholder:text-zinc-400"
+                    />
+                    <button
+                      onClick={handleCheckHealth}
+                      className="px-6 py-3 bg-zinc-900 text-white rounded-2xl text-sm font-medium hover:bg-zinc-800 transition-all"
+                    >
+                      Test
+                    </button>
+                  </div>
+                  {healthStatus && (
+                    <div className={cn(
+                      "mt-3 text-xs px-3 py-2 rounded-xl",
+                      healthStatus.type === 'success' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
+                    )}>
+                      {healthStatus.message}
+                    </div>
+                  )}
+                  <p className="mt-4 text-xs text-zinc-500 leading-relaxed">
+                    This URL is used by the app to connect to the backend services (Email, Link Generation).
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-20">
         {/* Header */}
-        <header className="mb-8 sm:mb-12 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white shadow-sm border border-black/5 mb-6">
-            <ShieldCheck className="w-6 h-6 text-zinc-800" />
+        <header className="mb-8 sm:mb-12 flex justify-between items-start">
+          <div className="flex-1 text-center pl-12">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white shadow-sm border border-black/5 mb-6">
+              <ShieldCheck className="w-6 h-6 text-zinc-800" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-medium tracking-tight mb-3">LinkVault</h1>
+            <p className="text-sm sm:text-base text-zinc-500">Create secure, time-limited access to your resources.</p>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-medium tracking-tight mb-3">LinkVault</h1>
-          <p className="text-sm sm:text-base text-zinc-500">Create secure, time-limited access to your resources.</p>
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-3 bg-white hover:bg-zinc-50 rounded-2xl border border-black/5 transition-all shadow-sm group"
+            title="App Settings"
+          >
+            <ShieldCheck className="w-6 h-6 text-zinc-400 group-hover:text-zinc-800 transition-colors" />
+          </button>
         </header>
 
         {/* Main Card */}
@@ -584,35 +660,6 @@ export default function App() {
                   </div>
                   
                   <div className="space-y-4 mb-6">
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <label className="block text-xs text-zinc-400 mb-1">Backend API URL (For APK to connect back)</label>
-                        <input
-                          type="text"
-                          value={backendUrl}
-                          onChange={(e) => setBackendUrl(e.target.value)}
-                          placeholder="https://your-app-url.run.app"
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-white placeholder:text-zinc-600"
-                        />
-                      </div>
-                      <button
-                        onClick={handleCheckHealth}
-                        className="px-4 py-2 bg-white/10 border border-white/10 rounded-xl text-xs font-medium hover:bg-white/20 transition-all text-white"
-                      >
-                        Check Health
-                      </button>
-                    </div>
-                    {healthStatus && (
-                      <div className={cn(
-                        "text-[10px] px-2 py-1 rounded-lg",
-                        healthStatus.type === 'success' ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                      )}>
-                        {healthStatus.message}
-                      </div>
-                    )}
-                    <p className="mt-1 text-[10px] text-zinc-500">
-                      Leave empty to use relative paths (web) or default fallback (APK).
-                    </p>
                     <div>
                       <label className="block text-xs text-zinc-400 mb-1">Your GitHub Token (Requires 'repo' scope)</label>
                       <input
