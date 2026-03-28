@@ -33,13 +33,14 @@ const DURATIONS = [
 
 // Helper to get the correct backend URL when running inside a mobile app (Capacitor)
 const getApiBaseUrl = () => {
+  const envAppUrl = process.env.APP_URL;
   if (typeof window !== 'undefined' && (
       window.location.origin.includes('localhost') || 
       window.location.origin.includes('capacitor') || 
       window.location.protocol === 'file:'
   )) {
-    // Use the live Vercel backend URL when running on a phone
-    return 'https://bestapp-vin.vercel.app';
+    // Use the current app's URL if available, otherwise fallback to Vercel
+    return envAppUrl || 'https://bestapp-vin.vercel.app';
   }
   return ''; // Use relative paths when running on the web
 };
@@ -283,8 +284,14 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to send email');
+        let errorMessage = 'Failed to send email';
+        try {
+          const errData = await response.json();
+          errorMessage = errData.error || errorMessage;
+        } catch (e) {
+          errorMessage = `Server Error (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setEmailSent(true);

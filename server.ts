@@ -84,13 +84,16 @@ app.use(express.json());
 // API: Send Email with APK
 app.post("/api/send-email", async (req, res) => {
   const { to, customerName, apkUrl, appName } = req.body;
+  console.log(`[Email] Request to send to ${to} for ${appName}`);
 
   if (!to || !apkUrl) {
+    console.error("[Email] Missing required fields:", { to, apkUrl });
     return res.status(400).json({ error: "Recipient email and APK URL are required." });
   }
 
   const transporter = getTransporter();
   if (!transporter) {
+    console.error("[Email] Transporter not configured. Check SMTP env vars.");
     return res.status(500).json({ error: "Email service not configured. Please set SMTP environment variables." });
   }
 
@@ -114,9 +117,10 @@ app.post("/api/send-email", async (req, res) => {
 
   try {
     await transporter.sendMail(mailOptions);
+    console.log(`[Email] Successfully sent to ${to}`);
     res.json({ success: true, message: "Email sent successfully!" });
   } catch (error) {
-    console.error("Failed to send email:", error);
+    console.error("[Email] Failed to send email:", error);
     res.status(500).json({ error: "Failed to send email. Check server logs." });
   }
 });
