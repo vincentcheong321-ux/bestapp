@@ -56,6 +56,12 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Email State
+  const [emailTo, setEmailTo] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
   // Cloud APK Builder State
   const [githubToken, setGithubToken] = useState(localStorage.getItem('githubToken') || '');
   const [builderRepo, setBuilderRepo] = useState(localStorage.getItem('builderRepo') || '');
@@ -256,6 +262,41 @@ export default function App() {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!emailTo || !generatedUrl) return;
+    
+    setEmailLoading(true);
+    setEmailSent(false);
+    setError(null);
+
+    try {
+      const baseUrl = getApiBaseUrl();
+      const response = await fetch(`${baseUrl}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailTo,
+          customerName: customerName,
+          apkUrl: generatedUrl,
+          appName: urls.find(u => u.url === selectedUrl)?.name || "LinkVault App"
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to send email');
+      }
+
+      setEmailSent(true);
+      setEmailTo('');
+      setCustomerName('');
+    } catch (err: any) {
+      setError(`Email Error: ${err.message}`);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-zinc-900 font-sans selection:bg-zinc-200 overflow-x-hidden">
       <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-20">
@@ -432,6 +473,50 @@ export default function App() {
                     <div className="mt-4 flex items-center gap-2 text-xs text-zinc-400">
                       <Clock className="w-3 h-3" />
                       <span>Expires on {new Date(expiresAt!).toLocaleString()}</span>
+                    </div>
+
+                    {/* Send to Customer Section */}
+                    <div className="mt-8 pt-8 border-t border-black/5">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-4">
+                        Send to Customer
+                      </label>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            placeholder="Customer Name"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="bg-white border border-black/5 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200 transition-all"
+                          />
+                          <input
+                            type="email"
+                            placeholder="Customer Email"
+                            value={emailTo}
+                            onChange={(e) => setEmailTo(e.target.value)}
+                            className="bg-white border border-black/5 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200 transition-all"
+                          />
+                        </div>
+                        <button
+                          onClick={handleSendEmail}
+                          disabled={emailLoading || !emailTo}
+                          className="w-full py-3 bg-zinc-100 text-zinc-900 rounded-xl font-medium hover:bg-zinc-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {emailLoading ? (
+                            <div className="w-4 h-4 border-2 border-zinc-900/30 border-t-zinc-900 rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-4 h-4" />
+                              Send Secure Link via Email
+                            </>
+                          )}
+                        </button>
+                        {emailSent && (
+                          <p className="text-xs text-emerald-600 text-center font-medium">
+                            ✓ Email sent successfully to {emailTo}!
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import { sql } from "@vercel/postgres";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 // Hardcoded Supabase credentials (WARNING: Security risk)
 const SUPABASE_URL = "https://usgowottnszzozjhxque.supabase.co";
@@ -17,6 +18,26 @@ const isVercel = !!process.env.VERCEL;
 
 const db = null;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Email Transporter Configuration
+const getTransporter = () => {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || "587");
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) {
+    console.warn("SMTP credentials not fully configured. Email functionality will be limited.");
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+};
 
 // Initialize database
 async function initDb() {
@@ -59,6 +80,46 @@ async function startServer() {
 
 app.use(cors());
 app.use(express.json());
+
+// API: Send Email with APK
+app.post("/api/send-email", async (req, res) => {
+  const { to, customerName, apkUrl, appName } = req.body;
+
+  if (!to || !apkUrl) {
+    return res.status(400).json({ error: "Recipient email and APK URL are required." });
+  }
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    return res.status(500).json({ error: "Email service not configured. Please set SMTP environment variables." });
+  }
+
+  const mailOptions = {
+    from: `"LinkVault Delivery" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Your Secure Download: ${appName || "LinkVault App"}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #1a1a1a;">Hello ${customerName || "Valued Customer"},</h2>
+        <p>Your secure download for <strong>${appName || "the requested application"}</strong> is ready.</p>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${apkUrl}" style="background-color: #1a1a1a; color: white; padding: 15px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">Download APK Now</a>
+        </div>
+        <p style="color: #666; font-size: 0.9rem;">This link is secure and may have an expiration time. Please download it at your earliest convenience.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 0.8rem; color: #999;">Sent via LinkVault Security Systems.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: "Email sent successfully!" });
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    res.status(500).json({ error: "Failed to send email. Check server logs." });
+  }
+});
 
 // API: Get all target resources
 app.get("/api/resources", async (req, res) => {
